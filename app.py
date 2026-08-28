@@ -2,15 +2,14 @@ import streamlit as st
 from google import genai
 from google.genai import types
 import PyPDF2
-import uuid  
+import uuid
+import json
+import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-# 1. Konfigurasi Halaman (Sidebar diatur agar selalu terbuka di awal)
-st.set_page_config(
-    page_title="DIMA-X | AI Agent", 
-    page_icon="🚀", 
-    layout="centered", 
-    initial_sidebar_state="expanded"
-)
+# 1. Konfigurasi Halaman 
+st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
 
 # Custom CSS ala ChatGPT
 st.markdown("""
@@ -18,15 +17,14 @@ st.markdown("""
     .stApp { background-color: #212121; color: #ececec; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* header {visibility: hidden;} <-- Dihapus agar tombol panah sidebar tidak hilang */
     
-    /* Tombol Utama */
     .stButton>button {
         border-radius: 8px;
         border: 1px solid #424242;
         background-color: #2f2f2f;
         color: white;
         transition: all 0.2s;
+        text-align: left;
     }
     .stButton>button:hover {
         background-color: #424242;
@@ -35,46 +33,88 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Ambil API Key dari Streamlit Secrets
+# Ambil API Key Gemini
 api_key = st.secrets["GEMINI_API_KEY"]
 
-# 2. Inisialisasi Sistem Multi-Sesi Obrolan
-if "chat_sessions" not in st.session_state:
-    st.session_state.chat_sessions = {}
-if "current_session_id" not in st.session_state:
-    new_id = str(uuid.uuid4())
-    st.session_state.current_session_id = new_id
-    st.session_state.chat_sessions[new_id] = {"title": "Obrolan Baru", "messages": []}
+# 2. Inisialisasi Firebase (Hanya berjalan satu kali)
+if not firebase_admin._apps:
+    # Membaca rahasia Firebase dari Streamlit Secrets
+    firebase_secrets = st.secrets["firebase"]["firebase_json"]
+    cred_dict = json.loads(firebase_secrets)
+    cred = credentials.Certificate(cred_dict)
+    firebase_admin.initialize_app(cred)
 
-def switch_session(session_id):
-    st.session_state.current_session_id = session_id
+db = firestore.client()
+collection_name = "dimax_history"
+
+# Fungsi Firebase
+def get_all_sessions():
+    sessions = {}
+    # Mengambil obrolan dari yang paling baru
+    docs = db.collection(collection_name).order_by("updated_at", direction=firestore.Query.DESCENDING).stream()
+    for doc in docs:
+        sessions[doc.id] = doc.to_dict()
+    return sessions
+
+def create_new_session():
+    new_id = str(uuid.uuid4())
+    new_data = {
+        "title": "Obrolan Baru", 
+        "messages": [], 
+        "updated_at": datetime.datetime.now().isoformat()
+    }
+    db.collection(collection_name).document(new_id).set(new_data)
+    return new_id
 
 def delete_session(session_id):
-    del st.session_state.chat_sessions[session_id]
-    if len(st.session_state.chat_sessions) == 0:
-        new_session_id = str(uuid.uuid4())
-        st.session_state.chat_sessions[new_session_id] = {"title": "Obrolan Baru", "messages": []}
-        st.session_state.current_session_id = new_session_id
-    elif st.session_state.current_session_id == session_id:
-        st.session_state.current_session_id = list(st.session_state.chat_sessions.keys())[0]
+    db.collection(collection_name).document(session_id).delete()
 
-# 3. Sidebar - Navigasi Riwayat Asli
+def save_message(session_id, messages, title=None):
+    update_data = {
+        "messages": messages,
+        "updated_at": datetime.datetime.now().isoformat()
+    }
+    if title:
+        update_data["title"] = title
+    db.collection(collection_name).document(session_id).update(update_data)
+
+# 3. Manajemen Sesi Aktif
+chat_sessions = get_all_sessions()
+
+if "current_session_id" not in st.session_state:
+    if len(chat_sessions) > 0:
+        # Buka obrolan terakhir yang ada di database
+        st.session_state.current_session_id = list(chat_sessions.keys())[0]
+    else:
+        st.session_state.current_session_id = create_new_session()
+        chat_sessions = get_all_sessions() # Refresh data
+
+# Cek jika sesi aktif terhapus
+if st.session_state.current_session_id not in chat_sessions:
+    if len(chat_sessions) > 0:
+        st.session_state.current_session_id = list(chat_sessions.keys())[0]
+    else:
+        st.session_state.current_session_id = create_new_session()
+        chat_sessions = get_all_sessions()
+
+current_session_id = st.session_state.current_session_id
+current_data = chat_sessions[current_session_id]
+current_messages = current_data.get("messages", [])
+
+# 4. Sidebar - Navigasi Riwayat Firebase
 with st.sidebar:
     if st.button("➕ Obrolan Baru", use_container_width=True):
-        new_id = str(uuid.uuid4())
-        st.session_state.chat_sessions[new_id] = {"title": "Obrolan Baru", "messages": []}
-        st.session_state.current_session_id = new_id
+        st.session_state.current_session_id = create_new_session()
         st.rerun()
         
     st.markdown("<br>", unsafe_allow_html=True)
     st.caption("RIWAYAT OBROLAN")
     
-    # Menampilkan daftar obrolan yang aktif
-    for s_id, session_data in reversed(list(st.session_state.chat_sessions.items())):
+    for s_id, s_data in chat_sessions.items():
         col1, col2 = st.columns([8, 2])
         with col1:
-            if st.button(f"💬 {session_data['title']}", key=f"btn_{s_id}", use_container_width=True):
-                switch_session(s_id)
+            if st.button(f"💬 {s_data['title']}", key=f"btn_{s_id}", use_container_width=True):
+                st.session_state.current_session_id = s_id
                 st.rerun()
         with col2:
             if st.button("🗑️", key=f"del_{s_id}"):
@@ -82,21 +122,20 @@ with st.sidebar:
                 st.rerun()
                 
     st.divider()
-    
     st.caption("WORKSPACE")
     mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     uploaded_file = st.file_uploader("📄 Upload Dokumen", type=['pdf', 'txt'])
 
-# 4. Logika Memori Asisten Pribadi (Dimas)
-base_memory = "Penggunamu bernama Dimas, seorang mahasiswa Sistem Informasi Universitas Terbuka dan staf administrasi di Disbudporapar Kabupaten Landak."
+# 5. Logika Memori Asisten Pribadi
+base_memory = "Penggunamu bernama Dimas, mahasiswa Sistem Informasi dan staf administrasi di Disbudporapar Kabupaten Landak."
 if "STUDY-X" in mode_dima:
-    system_instruction = f"Kamu adalah DIMA-X mode STUDY-X. {base_memory} Bantu Dimas belajar perkuliahan, merangkum modul Sistem Informasi, dan menjelaskan konsep IT secara ringkas."
+    system_instruction = f"Mode STUDY-X. {base_memory} Bantu Dimas belajar dan merangkum modul."
 elif "WORK-X" in mode_dima:
-    system_instruction = f"Kamu adalah DIMA-X mode WORK-X. {base_memory} Bantu Dimas mengurus pekerjaan administratif dinas, laporan, dan surat resmi pemerintahan."
+    system_instruction = f"Mode WORK-X. {base_memory} Bantu menyusun laporan dinas dan surat resmi."
 elif "WRITE-X" in mode_dima:
-    system_instruction = f"Kamu adalah DIMA-X mode WRITE-X. {base_memory} Perbaiki tata bahasa dan buat tulisan Dimas menjadi lebih terstruktur dan profesional."
+    system_instruction = f"Mode WRITE-X. {base_memory} Perbaiki tata bahasa dan struktur tulisan."
 else:
-    system_instruction = f"Kamu adalah DIMA-X, asisten AI pribadi yang cerdas. {base_memory} Berikan jawaban yang natural, praktis, dan langsung ke inti."
+    system_instruction = f"Kamu adalah DIMA-X, asisten AI pribadi yang cerdas. {base_memory} Jawab natural dan langsung ke inti."
 
 def get_document_text(file):
     text = ""
@@ -109,10 +148,7 @@ def get_document_text(file):
                 text += page.extract_text() + "\n"
     return text
 
-# Mengambil data obrolan pada sesi yang sedang aktif
-current_messages = st.session_state.chat_sessions[st.session_state.current_session_id]["messages"]
-
-# 5. Layar Selamat Datang 
+# 6. Layar Selamat Datang
 if len(current_messages) == 0:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; color: white; font-size: 2.5rem;'>🚀 DIMA-X</h1>", unsafe_allow_html=True)
@@ -122,27 +158,30 @@ if len(current_messages) == 0:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🎓 Ringkas materi kuliah", use_container_width=True):
-            current_messages.append({"role": "user", "content": "Bantu saya meringkas materi kuliah Sistem Informasi hari ini."})
-            st.session_state.chat_sessions[st.session_state.current_session_id]["title"] = "Ringkasan Materi"
+            current_messages.append({"role": "user", "content": "Bantu saya meringkas materi kuliah Sistem Informasi."})
+            save_message(current_session_id, current_messages, title="Ringkasan Materi")
             st.rerun()
     with col2:
         if st.button("💼 Buat laporan dinas", use_container_width=True):
-            current_messages.append({"role": "user", "content": "Bantu saya menyusun kerangka laporan kegiatan Disbudporapar."})
-            st.session_state.chat_sessions[st.session_state.current_session_id]["title"] = "Laporan Dinas"
+            current_messages.append({"role": "user", "content": "Bantu saya menyusun kerangka laporan dinas."})
+            save_message(current_session_id, current_messages, title="Laporan Dinas")
             st.rerun()
 
-# 6. Menampilkan Riwayat Pesan
+# Menampilkan Pesan
 for message in current_messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 7. Input dan Pemrosesan AI
+# 7. Input AI dan Simpan ke Firebase
 if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
+    # Generate judul otomatis untuk obrolan baru
+    new_title = current_data["title"]
     if len(current_messages) == 0:
-        new_title = prompt[:20] + "..." if len(prompt) > 20 else prompt
-        st.session_state.chat_sessions[st.session_state.current_session_id]["title"] = new_title
+        new_title = prompt[:25] + "..." if len(prompt) > 25 else prompt
 
     current_messages.append({"role": "user", "content": prompt})
+    save_message(current_session_id, current_messages, title=new_title)
+    
     with st.chat_message("user"):
         st.markdown(prompt)
 
@@ -159,13 +198,12 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
                 response = client.models.generate_content(
                     model='gemini-3.6-flash', 
                     contents=final_prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                    )
+                    config=types.GenerateContentConfig(system_instruction=system_instruction)
                 )
                 st.markdown(response.text)
         
         current_messages.append({"role": "assistant", "content": response.text})
+        save_message(current_session_id, current_messages) # Simpan balasan AI ke database
 
     except Exception as e:
         st.error(f"Terjadi kesalahan: {e}")
