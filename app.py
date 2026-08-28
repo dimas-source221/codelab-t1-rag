@@ -89,7 +89,7 @@ if prompt := st.chat_input("Berikan perintah ke DIMA-X..."):
         # Menghubungkan ke Gemini API
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-1.5-flash-latest",
             system_instruction=system_instruction
         )
 
