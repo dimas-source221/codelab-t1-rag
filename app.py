@@ -143,7 +143,7 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
             with st.spinner(f"DIMA-X memproses ({mode_dima})..."):
                 # MENGGUNAKAN GEMINI-2.5-FLASH TERBARU
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash', 
+                    model=model='gemini-3.6-flash', 
                     contents=final_prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
