@@ -11,41 +11,45 @@ from firebase_admin import credentials, firestore
 # 1. Konfigurasi Halaman 
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
 
-# 2. Desain CSS Custom (Full Black, Google Sans Typography, Navy Accent)
+# 2. Desain CSS Custom (Visual Effect, Glow, & Font)
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+    /* Mengimpor font modern berkarakter (Nunito untuk Brand, Roboto untuk Teks) */
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Roboto:wght@400;500&display=swap');
     
-    /* Font Global & Background Utama (Hitam Solid) */
     html, body, [class*="css"] {
         font-family: 'Roboto', sans-serif;
     }
-    .stApp { 
-        background-color: #000000; 
-        color: #e3e3e3; 
-    }
+    .stApp { background-color: #000000; color: #e3e3e3; }
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;}
+    [data-testid="stSidebar"] { background-color: #141414; }
     
-    /* Sidebar (Abu-abu sangat gelap) */
-    [data-testid="stSidebar"] { 
-        background-color: #141414; 
-    }
-    
-    /* Sembunyikan elemen bawaan Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Branding DIMA-X Gradasi Navy */
-    .brand-dima {
+    /* Branding Sidebar - Posisi pas di pojok kanan */
+    .brand-sidebar {
+        font-family: 'Nunito', sans-serif;
         background: linear-gradient(90deg, #4A90E2, #001f3f);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-size: 1.8rem;
-        font-weight: 800;
+        font-weight: 900;
         text-align: right;
+        padding-right: 5px; 
         margin-bottom: 20px;
     }
     
-    /* Tombol Utama dan Sidebar */
+    /* Branding Utama di Tengah - Putih dengan hint Navy */
+    .brand-main {
+        font-family: 'Nunito', sans-serif;
+        background: linear-gradient(135deg, #ffffff 50%, #87CEEB 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 3.5rem;
+        font-weight: 900;
+        text-align: center;
+        letter-spacing: -1.5px;
+    }
+    
+    /* Tombol Utama */
     .stButton>button {
         border-radius: 8px;
         border: 1px solid #333;
@@ -54,18 +58,48 @@ st.markdown("""
         transition: all 0.2s;
         text-align: left;
     }
-    .stButton>button:hover {
-        background-color: #333;
-        border-color: #4A90E2;
+    .stButton>button:hover { background-color: #333; border-color: #4A90E2; }
+    
+    /* Mengubah Glow Merah menjadi Navy pada Kolom Chat */
+    .stChatInput div[data-baseweb="input"]:focus-within, 
+    .stChatInput div[data-baseweb="textarea"] > div:focus-within {
+        border-color: #1e3a8a !important;
+        box-shadow: 0 0 10px 1px rgba(30, 58, 138, 0.7) !important;
     }
     
-    /* Warna Fokus Input Chat (Gradasi Navy ke Merah dihilangkan) */
-    .stChatInput textarea:focus {
-        border-color: #001f3f !important;
-        box-shadow: 0 0 0 1px #001f3f !important;
+    /* Trik CSS: Memaksa Popover Ikon + masuk ke dalam kolom Chat Input */
+    [data-testid="stPopover"] {
+        position: fixed !important;
+        bottom: 31px; /* Jarak dari bawah layar */
+        left: 50%;
+        transform: translateX(-340px); /* Geser ke ujung kiri dalam kolom input */
+        z-index: 1000;
     }
     
-    /* Mengakali tombol aksi kecil di bawah chat */
+    /* Desain ikon + agar menyatu tanpa background tebal */
+    [data-testid="stPopover"] button {
+        border: none;
+        background: transparent !important;
+        padding: 5px !important;
+        color: #a3a3a3;
+        font-size: 1.2rem;
+    }
+    [data-testid="stPopover"] button:hover { color: #ffffff; }
+    
+    /* Memberi jarak ketikan teks agar tidak tertimpa ikon + */
+    div[data-testid="stChatInput"] textarea {
+        padding-left: 45px !important;
+    }
+    
+    /* Responsif ikon + di layar HP */
+    @media (max-width: 768px) {
+        [data-testid="stPopover"] {
+            transform: translateX(-42vw);
+            bottom: 25px;
+        }
+    }
+    
+    /* Action Bar (Copy, Redo, dll) */
     .action-btn button {
         font-size: 0.8rem;
         padding: 2px 8px;
@@ -73,17 +107,13 @@ st.markdown("""
         border: none;
         color: #888;
     }
-    .action-btn button:hover {
-        color: #4A90E2;
-        background-color: #1e1e1e;
-    }
+    .action-btn button:hover { color: #4A90E2; background-color: #1e1e1e; }
     </style>
 """, unsafe_allow_html=True)
 
-# Ambil API Key Gemini
 api_key = st.secrets["GEMINI_API_KEY"]
 
-# 3. Inisialisasi Firebase (Berjalan satu kali)
+# 3. Inisialisasi Firebase
 if not firebase_admin._apps:
     firebase_secrets = st.secrets["firebase"]["firebase_json"]
     cred_dict = json.loads(firebase_secrets)
@@ -123,7 +153,6 @@ def save_message(session_id, messages, title=None):
         update_data["title"] = title
     db.collection(collection_name).document(session_id).update(update_data)
 
-# Manajemen Sesi Aktif
 chat_sessions = get_all_sessions()
 
 if "current_session_id" not in st.session_state:
@@ -144,9 +173,9 @@ current_session_id = st.session_state.current_session_id
 current_data = chat_sessions[current_session_id]
 current_messages = current_data.get("messages", [])
 
-# 4. Sidebar - Branding dan Navigasi Riwayat dengan Menu 3 Titik
+# 4. Sidebar 
 with st.sidebar:
-    st.markdown('<div class="brand-dima">🚀 DIMA-X</div>', unsafe_allow_html=True)
+    st.markdown('<div class="brand-sidebar">🚀 DIMA-X</div>', unsafe_allow_html=True)
     
     if st.button("➕ Obrolan Baru", use_container_width=True):
         st.session_state.current_session_id = create_new_session()
@@ -162,16 +191,15 @@ with st.sidebar:
                 st.session_state.current_session_id = s_id
                 st.rerun()
         with col_menu:
-            # Menu Titik Tiga (Popover)
             with st.popover("⋮"):
                 st.caption("Opsi Obrolan")
                 if st.button("📌 Pin", key=f"pin_{s_id}", use_container_width=True):
                     st.toast("Fitur Pin segera hadir!", icon="📌")
                 if st.button("✏️ Rename", key=f"ren_{s_id}", use_container_width=True):
-                    st.toast("Gunakan prompt pertama untuk mengubah judul otomatis.", icon="✏️")
-                st.download_button("⬇️ Download PDF", data="Simulasi Ekspor PDF", file_name=f"{s_data['title']}.pdf", key=f"dl_{s_id}", use_container_width=True)
+                    st.toast("Ketik prompt baru untuk otomatis ganti judul.", icon="✏️")
+                st.download_button("⬇️ Download PDF", data="Ekspor PDF", file_name=f"{s_data['title']}.pdf", key=f"dl_{s_id}", use_container_width=True)
                 if st.button("📓 Add to Notebook", key=f"note_{s_id}", use_container_width=True):
-                    st.toast("Tersimpan ke Notebook DIMA-X", icon="📓")
+                    st.toast("Disimpan ke Notebook", icon="📓")
                 if st.button("🗑️ Delete", key=f"del_{s_id}", use_container_width=True):
                     delete_session(s_id)
                     st.rerun()
@@ -180,7 +208,7 @@ with st.sidebar:
     st.caption("WORKSPACE & SETTINGS")
     mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
 
-# 5. Logika Memori Asisten (Sapaan Universal)
+# 5. Logika Memori 
 base_memory = "Kamu adalah DIMA-X, asisten AI pribadi cerdas. Jawab dengan gaya natural, bersahabat, profesional, dan langsung ke inti. Jangan menyebut nama spesifik pengguna kecuali pengguna memperkenalkan dirinya."
 if "STUDY-X" in mode_dima:
     system_instruction = f"Mode STUDY-X. {base_memory} Fokus membantu pembelajaran dan merangkum modul edukasi."
@@ -202,11 +230,11 @@ def get_document_text(file):
                 text += page.extract_text() + "\n"
     return text
 
-# 6. Layar Selamat Datang
+# 6. Layar Selamat Datang (Main Brand)
 if len(current_messages) == 0:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center; color: white; font-size: 2.5rem;'>🚀 DIMA-X</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #9ca3af; font-size: 1.1rem;'>Halo! Apa yang bisa saya bantu hari ini?</p>", unsafe_allow_html=True)
+    st.markdown("<div class='brand-main'>🚀 DIMA-X</div>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #9ca3af; font-size: 1.1rem; margin-top: 10px;'>Halo! Apa yang bisa saya bantu hari ini?</p>", unsafe_allow_html=True)
     st.markdown("<br><br>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -221,12 +249,11 @@ if len(current_messages) == 0:
             save_message(current_session_id, current_messages, title="Laporan Kerja")
             st.rerun()
 
-# 7. Menampilkan Riwayat Pesan dengan Action Bar AI
+# 7. Riwayat Pesan & Action Bar
 for idx, message in enumerate(current_messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
         
-        # Action Bar khusus untuk balasan AI
         if message["role"] == "assistant":
             st.markdown('<div class="action-btn">', unsafe_allow_html=True)
             a_col1, a_col2, a_col3, a_col4 = st.columns([1.5, 1.5, 1.5, 5])
@@ -235,7 +262,6 @@ for idx, message in enumerate(current_messages):
                     st.toast("Teks disalin!", icon="📋")
             with a_col2:
                 if st.button("🔄 Redo", key=f"rd_{idx}"):
-                    # Menghapus pesan terakhir dan memicu ulang prompt
                     current_messages = current_messages[:-1]
                     save_message(current_session_id, current_messages)
                     st.rerun()
@@ -243,15 +269,13 @@ for idx, message in enumerate(current_messages):
                 st.download_button("📄 Export", data=message["content"], file_name=f"DIMAX_Response_{idx}.txt", key=f"ex_{idx}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# 8. Ikon Plus (+) Akses File di atas Chat Input
-col_plus, col_empty = st.columns([1, 10])
-with col_plus:
-    with st.popover("➕"):
-        uploaded_file = st.file_uploader("Upload Files", type=['pdf', 'txt'])
-        if st.button("☁️ Add from Drive", use_container_width=True):
-            st.toast("Integrasi Drive segera hadir.", icon="☁️")
-        if st.button("📓 Notebooks", use_container_width=True):
-            st.toast("Akses Notebook terbuka.", icon="📓")
+# 8. Ikon Plus (+) Akses File (Melayang di atas input lewat CSS)
+with st.popover("➕"):
+    uploaded_file = st.file_uploader("Upload Files", type=['pdf', 'txt'])
+    if st.button("☁️ Add from Drive", use_container_width=True):
+        st.toast("Integrasi Drive segera hadir.", icon="☁️")
+    if st.button("📓 Notebooks", use_container_width=True):
+        st.toast("Akses Notebook terbuka.", icon="📓")
 
 # 9. Input AI Utama
 if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
