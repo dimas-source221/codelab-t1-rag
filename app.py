@@ -6,14 +6,13 @@ import PyPDF2
 # 1. Konfigurasi Halaman (Lebih Clean & Terpusat)
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered")
 
-# Custom CSS ala ChatGPT Dark Mode
+# Custom CSS ala ChatGPT Dark Mode (TANPA KODE PERUSAK LAYAR)
 st.markdown("""
     <style>
     /* Warna background solid dark abu-abu tua ala ChatGPT */
     .stApp { background-color: #212121; color: #ececec; }
     
-    /* Menyembunyikan elemen bawaan Streamlit (termasuk foto profil bawah) */
-    [data-testid="stAppViewContainer"] > div:last-child {display: none;}
+    /* Menyembunyikan elemen bawaan Streamlit (header/footer) */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
