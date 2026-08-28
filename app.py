@@ -2,10 +2,15 @@ import streamlit as st
 from google import genai
 from google.genai import types
 import PyPDF2
-import uuid  # Library tambahan untuk membuat ID unik tiap obrolan
+import uuid  
 
-# 1. Konfigurasi Halaman 
-st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered")
+# 1. Konfigurasi Halaman (Sidebar diatur agar selalu terbuka di awal)
+st.set_page_config(
+    page_title="DIMA-X | AI Agent", 
+    page_icon="🚀", 
+    layout="centered", 
+    initial_sidebar_state="expanded"
+)
 
 # Custom CSS ala ChatGPT
 st.markdown("""
@@ -13,7 +18,7 @@ st.markdown("""
     .stApp { background-color: #212121; color: #ececec; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* header {visibility: hidden;} <-- Dihapus agar tombol panah sidebar tidak hilang */
     
     /* Tombol Utama */
     .stButton>button {
@@ -46,12 +51,10 @@ def switch_session(session_id):
 
 def delete_session(session_id):
     del st.session_state.chat_sessions[session_id]
-    # Jika semua dihapus, buat sesi kosong baru
     if len(st.session_state.chat_sessions) == 0:
         new_session_id = str(uuid.uuid4())
         st.session_state.chat_sessions[new_session_id] = {"title": "Obrolan Baru", "messages": []}
         st.session_state.current_session_id = new_session_id
-    # Jika sesi yang aktif dihapus, pindah ke sesi pertama yang tersisa
     elif st.session_state.current_session_id == session_id:
         st.session_state.current_session_id = list(st.session_state.chat_sessions.keys())[0]
 
@@ -109,7 +112,7 @@ def get_document_text(file):
 # Mengambil data obrolan pada sesi yang sedang aktif
 current_messages = st.session_state.chat_sessions[st.session_state.current_session_id]["messages"]
 
-# 5. Layar Selamat Datang (Jika obrolan masih kosong)
+# 5. Layar Selamat Datang 
 if len(current_messages) == 0:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; color: white; font-size: 2.5rem;'>🚀 DIMA-X</h1>", unsafe_allow_html=True)
@@ -135,7 +138,6 @@ for message in current_messages:
 
 # 7. Input dan Pemrosesan AI
 if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
-    # Ganti judul sesi secara otomatis berdasarkan pesan pertama
     if len(current_messages) == 0:
         new_title = prompt[:20] + "..." if len(prompt) > 20 else prompt
         st.session_state.chat_sessions[st.session_state.current_session_id]["title"] = new_title
