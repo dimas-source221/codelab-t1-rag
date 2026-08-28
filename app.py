@@ -1,7 +1,7 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import PyPDF2
-import os
 
 # 1. Konfigurasi Halaman & Identitas
 st.set_page_config(
@@ -34,7 +34,6 @@ st.sidebar.subheader("📄 DOC-X (Analisis Dokumen)")
 uploaded_file = st.sidebar.file_uploader("Upload Modul / Laporan (PDF/TXT)", type=['pdf', 'txt'])
 
 # 3. Logika Memori & System Prompt (Kepribadian AI)
-# DIMA-X sudah disuntikkan memori tentang identitasmu
 base_memory = "Penggunamu bernama Dimas, seorang mahasiswa Sistem Informasi dan staf administrasi di Dinas Kebudayaan, Pariwisata, Pemuda dan Olahraga (Disbudporapar) Kabupaten Landak."
 
 if "STUDY-X" in mode_dima:
@@ -64,7 +63,6 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": f"Halo Dimas! **DIMA-X** siap membantu. Saat ini saya berada di mode **{mode_dima}**. Ada modul kuliah atau tugas dinas yang ingin diselesaikan hari ini?"}
     ]
 
-# Hapus history jika ganti mode agar AI fokus pada peran barunya
 if "current_mode" not in st.session_state or st.session_state.current_mode != mode_dima:
     st.session_state.current_mode = mode_dima
     st.session_state.messages = [
@@ -86,14 +84,9 @@ if prompt := st.chat_input("Berikan perintah ke DIMA-X..."):
         st.markdown(prompt)
 
     try:
-        # Menghubungkan ke Gemini API
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-latest",
-            system_instruction=system_instruction
-        )
-
-        # Proses DOC-X: Sisipkan teks dokumen ke dalam ingatan Gemini jika ada file yang diupload
+        # Menggunakan SDK Google GenAI versi terbaru
+        client = genai.Client(api_key=api_key)
+        
         context = ""
         if uploaded_file:
             doc_text = get_document_text(uploaded_file)
@@ -103,7 +96,14 @@ if prompt := st.chat_input("Berikan perintah ke DIMA-X..."):
 
         with st.chat_message("assistant"):
             with st.spinner(f"DIMA-X sedang menganalisis ({mode_dima})..."):
-                response = model.generate_content(final_prompt)
+                # Format penulisan baru untuk SDK google-genai
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=final_prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                    )
+                )
                 st.markdown(response.text)
         
         st.session_state.messages.append({"role": "assistant", "content": response.text})
