@@ -11,24 +11,71 @@ from firebase_admin import credentials, firestore
 # 1. Konfigurasi Halaman 
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
 
-# Custom CSS ala ChatGPT
+# 2. Desain CSS Custom (Full Black, Google Sans Typography, Navy Accent)
 st.markdown("""
     <style>
-    .stApp { background-color: #212121; color: #ececec; }
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+    
+    /* Font Global & Background Utama (Hitam Solid) */
+    html, body, [class*="css"] {
+        font-family: 'Roboto', sans-serif;
+    }
+    .stApp { 
+        background-color: #000000; 
+        color: #e3e3e3; 
+    }
+    
+    /* Sidebar (Abu-abu sangat gelap) */
+    [data-testid="stSidebar"] { 
+        background-color: #141414; 
+    }
+    
+    /* Sembunyikan elemen bawaan Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
+    /* Branding DIMA-X Gradasi Navy */
+    .brand-dima {
+        background: linear-gradient(90deg, #4A90E2, #001f3f);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 1.8rem;
+        font-weight: 800;
+        text-align: right;
+        margin-bottom: 20px;
+    }
+    
+    /* Tombol Utama dan Sidebar */
     .stButton>button {
         border-radius: 8px;
-        border: 1px solid #424242;
-        background-color: #2f2f2f;
+        border: 1px solid #333;
+        background-color: #1e1e1e;
         color: white;
         transition: all 0.2s;
         text-align: left;
     }
     .stButton>button:hover {
-        background-color: #424242;
-        border-color: #565656;
+        background-color: #333;
+        border-color: #4A90E2;
+    }
+    
+    /* Warna Fokus Input Chat (Gradasi Navy ke Merah dihilangkan) */
+    .stChatInput textarea:focus {
+        border-color: #001f3f !important;
+        box-shadow: 0 0 0 1px #001f3f !important;
+    }
+    
+    /* Mengakali tombol aksi kecil di bawah chat */
+    .action-btn button {
+        font-size: 0.8rem;
+        padding: 2px 8px;
+        background-color: transparent;
+        border: none;
+        color: #888;
+    }
+    .action-btn button:hover {
+        color: #4A90E2;
+        background-color: #1e1e1e;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -36,9 +83,8 @@ st.markdown("""
 # Ambil API Key Gemini
 api_key = st.secrets["GEMINI_API_KEY"]
 
-# 2. Inisialisasi Firebase (Hanya berjalan satu kali)
+# 3. Inisialisasi Firebase (Berjalan satu kali)
 if not firebase_admin._apps:
-    # Membaca rahasia Firebase dari Streamlit Secrets
     firebase_secrets = st.secrets["firebase"]["firebase_json"]
     cred_dict = json.loads(firebase_secrets)
     cred = credentials.Certificate(cred_dict)
@@ -47,10 +93,8 @@ if not firebase_admin._apps:
 db = firestore.client()
 collection_name = "dimax_history"
 
-# Fungsi Firebase
 def get_all_sessions():
     sessions = {}
-    # Mengambil obrolan dari yang paling baru
     docs = db.collection(collection_name).order_by("updated_at", direction=firestore.Query.DESCENDING).stream()
     for doc in docs:
         sessions[doc.id] = doc.to_dict()
@@ -61,7 +105,8 @@ def create_new_session():
     new_data = {
         "title": "Obrolan Baru", 
         "messages": [], 
-        "updated_at": datetime.datetime.now().isoformat()
+        "updated_at": datetime.datetime.now().isoformat(),
+        "is_pinned": False
     }
     db.collection(collection_name).document(new_id).set(new_data)
     return new_id
@@ -78,18 +123,16 @@ def save_message(session_id, messages, title=None):
         update_data["title"] = title
     db.collection(collection_name).document(session_id).update(update_data)
 
-# 3. Manajemen Sesi Aktif
+# Manajemen Sesi Aktif
 chat_sessions = get_all_sessions()
 
 if "current_session_id" not in st.session_state:
     if len(chat_sessions) > 0:
-        # Buka obrolan terakhir yang ada di database
         st.session_state.current_session_id = list(chat_sessions.keys())[0]
     else:
         st.session_state.current_session_id = create_new_session()
-        chat_sessions = get_all_sessions() # Refresh data
+        chat_sessions = get_all_sessions() 
 
-# Cek jika sesi aktif terhapus
 if st.session_state.current_session_id not in chat_sessions:
     if len(chat_sessions) > 0:
         st.session_state.current_session_id = list(chat_sessions.keys())[0]
@@ -101,8 +144,10 @@ current_session_id = st.session_state.current_session_id
 current_data = chat_sessions[current_session_id]
 current_messages = current_data.get("messages", [])
 
-# 4. Sidebar - Navigasi Riwayat Firebase
+# 4. Sidebar - Branding dan Navigasi Riwayat dengan Menu 3 Titik
 with st.sidebar:
+    st.markdown('<div class="brand-dima">🚀 DIMA-X</div>', unsafe_allow_html=True)
+    
     if st.button("➕ Obrolan Baru", use_container_width=True):
         st.session_state.current_session_id = create_new_session()
         st.rerun()
@@ -111,31 +156,40 @@ with st.sidebar:
     st.caption("RIWAYAT OBROLAN")
     
     for s_id, s_data in chat_sessions.items():
-        col1, col2 = st.columns([8, 2])
-        with col1:
+        col_title, col_menu = st.columns([8, 2])
+        with col_title:
             if st.button(f"💬 {s_data['title']}", key=f"btn_{s_id}", use_container_width=True):
                 st.session_state.current_session_id = s_id
                 st.rerun()
-        with col2:
-            if st.button("🗑️", key=f"del_{s_id}"):
-                delete_session(s_id)
-                st.rerun()
+        with col_menu:
+            # Menu Titik Tiga (Popover)
+            with st.popover("⋮"):
+                st.caption("Opsi Obrolan")
+                if st.button("📌 Pin", key=f"pin_{s_id}", use_container_width=True):
+                    st.toast("Fitur Pin segera hadir!", icon="📌")
+                if st.button("✏️ Rename", key=f"ren_{s_id}", use_container_width=True):
+                    st.toast("Gunakan prompt pertama untuk mengubah judul otomatis.", icon="✏️")
+                st.download_button("⬇️ Download PDF", data="Simulasi Ekspor PDF", file_name=f"{s_data['title']}.pdf", key=f"dl_{s_id}", use_container_width=True)
+                if st.button("📓 Add to Notebook", key=f"note_{s_id}", use_container_width=True):
+                    st.toast("Tersimpan ke Notebook DIMA-X", icon="📓")
+                if st.button("🗑️ Delete", key=f"del_{s_id}", use_container_width=True):
+                    delete_session(s_id)
+                    st.rerun()
                 
     st.divider()
-    st.caption("WORKSPACE")
+    st.caption("WORKSPACE & SETTINGS")
     mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
-    uploaded_file = st.file_uploader("📄 Upload Dokumen", type=['pdf', 'txt'])
 
-# 5. Logika Memori Asisten Pribadi
-base_memory = "Penggunamu bernama Dimas, mahasiswa Sistem Informasi dan staf administrasi di Disbudporapar Kabupaten Landak."
+# 5. Logika Memori Asisten (Sapaan Universal)
+base_memory = "Kamu adalah DIMA-X, asisten AI pribadi cerdas. Jawab dengan gaya natural, bersahabat, profesional, dan langsung ke inti. Jangan menyebut nama spesifik pengguna kecuali pengguna memperkenalkan dirinya."
 if "STUDY-X" in mode_dima:
-    system_instruction = f"Mode STUDY-X. {base_memory} Bantu Dimas belajar dan merangkum modul."
+    system_instruction = f"Mode STUDY-X. {base_memory} Fokus membantu pembelajaran dan merangkum modul edukasi."
 elif "WORK-X" in mode_dima:
-    system_instruction = f"Mode WORK-X. {base_memory} Bantu menyusun laporan dinas dan surat resmi."
+    system_instruction = f"Mode WORK-X. {base_memory} Fokus menyusun laporan, administrasi, dan surat resmi."
 elif "WRITE-X" in mode_dima:
-    system_instruction = f"Mode WRITE-X. {base_memory} Perbaiki tata bahasa dan struktur tulisan."
+    system_instruction = f"Mode WRITE-X. {base_memory} Fokus pada perbaikan tata bahasa dan struktur penulisan."
 else:
-    system_instruction = f"Kamu adalah DIMA-X, asisten AI pribadi yang cerdas. {base_memory} Jawab natural dan langsung ke inti."
+    system_instruction = base_memory
 
 def get_document_text(file):
     text = ""
@@ -152,29 +206,55 @@ def get_document_text(file):
 if len(current_messages) == 0:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; color: white; font-size: 2.5rem;'>🚀 DIMA-X</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #9ca3af; font-size: 1.1rem;'>Apa yang bisa saya bantu hari ini, Mas Dimas?</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #9ca3af; font-size: 1.1rem;'>Halo! Apa yang bisa saya bantu hari ini?</p>", unsafe_allow_html=True)
     st.markdown("<br><br>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🎓 Ringkas materi kuliah", use_container_width=True):
-            current_messages.append({"role": "user", "content": "Bantu saya meringkas materi kuliah Sistem Informasi."})
+        if st.button("🎓 Ringkas materi pembelajaran", use_container_width=True):
+            current_messages.append({"role": "user", "content": "Bantu saya meringkas materi utama hari ini."})
             save_message(current_session_id, current_messages, title="Ringkasan Materi")
             st.rerun()
     with col2:
-        if st.button("💼 Buat laporan dinas", use_container_width=True):
-            current_messages.append({"role": "user", "content": "Bantu saya menyusun kerangka laporan dinas."})
-            save_message(current_session_id, current_messages, title="Laporan Dinas")
+        if st.button("💼 Susun draf laporan", use_container_width=True):
+            current_messages.append({"role": "user", "content": "Bantu saya menyusun kerangka laporan kerja."})
+            save_message(current_session_id, current_messages, title="Laporan Kerja")
             st.rerun()
 
-# Menampilkan Pesan
-for message in current_messages:
+# 7. Menampilkan Riwayat Pesan dengan Action Bar AI
+for idx, message in enumerate(current_messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        
+        # Action Bar khusus untuk balasan AI
+        if message["role"] == "assistant":
+            st.markdown('<div class="action-btn">', unsafe_allow_html=True)
+            a_col1, a_col2, a_col3, a_col4 = st.columns([1.5, 1.5, 1.5, 5])
+            with a_col1:
+                if st.button("📋 Copy", key=f"cp_{idx}"):
+                    st.toast("Teks disalin!", icon="📋")
+            with a_col2:
+                if st.button("🔄 Redo", key=f"rd_{idx}"):
+                    # Menghapus pesan terakhir dan memicu ulang prompt
+                    current_messages = current_messages[:-1]
+                    save_message(current_session_id, current_messages)
+                    st.rerun()
+            with a_col3:
+                st.download_button("📄 Export", data=message["content"], file_name=f"DIMAX_Response_{idx}.txt", key=f"ex_{idx}")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# 7. Input AI dan Simpan ke Firebase
+# 8. Ikon Plus (+) Akses File di atas Chat Input
+col_plus, col_empty = st.columns([1, 10])
+with col_plus:
+    with st.popover("➕"):
+        uploaded_file = st.file_uploader("Upload Files", type=['pdf', 'txt'])
+        if st.button("☁️ Add from Drive", use_container_width=True):
+            st.toast("Integrasi Drive segera hadir.", icon="☁️")
+        if st.button("📓 Notebooks", use_container_width=True):
+            st.toast("Akses Notebook terbuka.", icon="📓")
+
+# 9. Input AI Utama
 if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
-    # Generate judul otomatis untuk obrolan baru
     new_title = current_data["title"]
     if len(current_messages) == 0:
         new_title = prompt[:25] + "..." if len(prompt) > 25 else prompt
@@ -203,7 +283,8 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
                 st.markdown(response.text)
         
         current_messages.append({"role": "assistant", "content": response.text})
-        save_message(current_session_id, current_messages) # Simpan balasan AI ke database
+        save_message(current_session_id, current_messages)
+        st.rerun()
 
     except Exception as e:
         st.error(f"Terjadi kesalahan: {e}")
