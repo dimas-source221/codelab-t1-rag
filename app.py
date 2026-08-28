@@ -44,7 +44,8 @@ with st.sidebar:
     st.markdown("### 🚀 DIMA-X")
     st.caption("Personal AI Work & Study Agent")
     
-    api_key = st.text_input("🔑 API Key Gemini", type="password")
+    # Mengambil kunci dari brankas rahasia Streamlit
+    api_key = st.secrets["GEMINI_API_KEY"]
     
     st.divider()
     st.markdown("#### WORKSPACE")
@@ -123,10 +124,7 @@ for message in st.session_state.messages:
 
 # Input dan Pemrosesan
 if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
-    if not api_key:
-        st.warning("⚠️ DIMA-X belum aktif. Masukkan API Key di sidebar!")
-        st.stop()
-
+    # Karena API Key sekarang diambil dari secrets, tidak perlu peringatan form kosong lagi
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -141,8 +139,9 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
 
         with st.chat_message("assistant"):
             with st.spinner(f"DIMA-X memproses ({mode_dima})..."):
+                # MENGGUNAKAN GEMINI-3.6-FLASH TERBARU
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash',  # <-- PASTIKAN HANYA ADA SATU KATA 'model='
+                    model='gemini-3.6-flash', 
                     contents=final_prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
