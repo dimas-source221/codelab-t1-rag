@@ -11,10 +11,9 @@ from firebase_admin import credentials, firestore
 # 1. Konfigurasi Halaman 
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
 
-# 2. Desain CSS Custom (Visual Effect, Glow, & Font)
+# 2. Desain CSS Custom
 st.markdown("""
     <style>
-    /* Mengimpor font modern berkarakter (Nunito untuk Brand, Roboto untuk Teks) */
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Roboto:wght@400;500&display=swap');
     
     html, body, [class*="css"] {
@@ -24,29 +23,35 @@ st.markdown("""
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
     [data-testid="stSidebar"] { background-color: #141414; }
     
-    /* Branding Sidebar - Posisi pas di pojok kanan */
+    /* Branding Sidebar - Rata Kiri & Sejajar dengan Tombol */
     .brand-sidebar {
         font-family: 'Nunito', sans-serif;
-        background: linear-gradient(90deg, #4A90E2, #001f3f);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
         font-size: 1.8rem;
         font-weight: 900;
-        text-align: right;
-        padding-right: 5px; 
+        text-align: left;
         margin-bottom: 20px;
+        padding-left: 2px;
     }
     
-    /* Branding Utama di Tengah - Putih dengan hint Navy */
+    /* Branding Utama di Tengah */
     .brand-main {
         font-family: 'Nunito', sans-serif;
-        background: linear-gradient(135deg, #ffffff 50%, #87CEEB 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
         font-size: 3.5rem;
         font-weight: 900;
         text-align: center;
         letter-spacing: -1.5px;
+    }
+    
+    /* Gradasi Teks Putih ke Biru Muda (Navy/Cyan) */
+    .brand-text {
+        background: linear-gradient(135deg, #ffffff 40%, #87CEEB 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    /* Memastikan emoji roket tidak kehilangan warnanya */
+    .rocket-icon {
+        -webkit-text-fill-color: initial;
     }
     
     /* Tombol Utama */
@@ -60,43 +65,23 @@ st.markdown("""
     }
     .stButton>button:hover { background-color: #333; border-color: #4A90E2; }
     
-    /* Mengubah Glow Merah menjadi Navy pada Kolom Chat */
+    /* Navy Glow saat Kolom Chat Diklik */
     .stChatInput div[data-baseweb="input"]:focus-within, 
     .stChatInput div[data-baseweb="textarea"] > div:focus-within {
         border-color: #1e3a8a !important;
         box-shadow: 0 0 10px 1px rgba(30, 58, 138, 0.7) !important;
     }
     
-    /* Trik CSS: Memaksa Popover Ikon + masuk ke dalam kolom Chat Input */
-    [data-testid="stPopover"] {
-        position: fixed !important;
-        bottom: 31px; /* Jarak dari bawah layar */
-        left: 50%;
-        transform: translateX(-340px); /* Geser ke ujung kiri dalam kolom input */
-        z-index: 1000;
-    }
-    
-    /* Desain ikon + agar menyatu tanpa background tebal */
+    /* Tombol Popover (+ dan Titik 3) agar tidak memiliki background tebal */
     [data-testid="stPopover"] button {
-        border: none;
-        background: transparent !important;
-        padding: 5px !important;
+        border: 1px solid #333;
+        background-color: #141414;
         color: #a3a3a3;
-        font-size: 1.2rem;
+        border-radius: 8px;
     }
-    [data-testid="stPopover"] button:hover { color: #ffffff; }
-    
-    /* Memberi jarak ketikan teks agar tidak tertimpa ikon + */
-    div[data-testid="stChatInput"] textarea {
-        padding-left: 45px !important;
-    }
-    
-    /* Responsif ikon + di layar HP */
-    @media (max-width: 768px) {
-        [data-testid="stPopover"] {
-            transform: translateX(-42vw);
-            bottom: 25px;
-        }
+    [data-testid="stPopover"] button:hover { 
+        color: #ffffff; 
+        border-color: #4A90E2; 
     }
     
     /* Action Bar (Copy, Redo, dll) */
@@ -175,7 +160,8 @@ current_messages = current_data.get("messages", [])
 
 # 4. Sidebar 
 with st.sidebar:
-    st.markdown('<div class="brand-sidebar">🚀 DIMA-X</div>', unsafe_allow_html=True)
+    # Branding Sidebar (Emoji asli + Gradasi Teks Putih/Navy)
+    st.markdown('<div class="brand-sidebar"><span class="rocket-icon">🚀</span> <span class="brand-text">DIMA-X</span></div>', unsafe_allow_html=True)
     
     if st.button("➕ Obrolan Baru", use_container_width=True):
         st.session_state.current_session_id = create_new_session()
@@ -230,10 +216,10 @@ def get_document_text(file):
                 text += page.extract_text() + "\n"
     return text
 
-# 6. Layar Selamat Datang (Main Brand)
+# 6. Layar Selamat Datang
 if len(current_messages) == 0:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
-    st.markdown("<div class='brand-main'>🚀 DIMA-X</div>", unsafe_allow_html=True)
+    st.markdown("<div class='brand-main'><span class='rocket-icon'>🚀</span> <span class='brand-text'>DIMA-X</span></div>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #9ca3af; font-size: 1.1rem; margin-top: 10px;'>Halo! Apa yang bisa saya bantu hari ini?</p>", unsafe_allow_html=True)
     st.markdown("<br><br>", unsafe_allow_html=True)
     
@@ -269,13 +255,25 @@ for idx, message in enumerate(current_messages):
                 st.download_button("📄 Export", data=message["content"], file_name=f"DIMAX_Response_{idx}.txt", key=f"ex_{idx}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# 8. Ikon Plus (+) Akses File (Melayang di atas input lewat CSS)
-with st.popover("➕"):
-    uploaded_file = st.file_uploader("Upload Files", type=['pdf', 'txt'])
-    if st.button("☁️ Add from Drive", use_container_width=True):
-        st.toast("Integrasi Drive segera hadir.", icon="☁️")
-    if st.button("📓 Notebooks", use_container_width=True):
-        st.toast("Akses Notebook terbuka.", icon="📓")
+# 8. Menu Ekstra (Titik 3 di Kiri, Plus di Kanan) - Tepat di atas Chat Input
+st.markdown("<br>", unsafe_allow_html=True)
+menu_col1, menu_col2, menu_col3 = st.columns([1, 8, 1])
+
+with menu_col1:
+    with st.popover("⋮"):
+        st.caption("Opsi Tambahan")
+        if st.button("⚙️ Pengaturan", use_container_width=True):
+            st.toast("Pengaturan AI", icon="⚙️")
+        if st.button("🧹 Bersihkan Konteks", use_container_width=True):
+            st.toast("Konteks dibersihkan", icon="🧹")
+
+with menu_col3:
+    with st.popover("➕"):
+        uploaded_file = st.file_uploader("Upload Files", type=['pdf', 'txt'])
+        if st.button("☁️ Add from Drive", use_container_width=True):
+            st.toast("Integrasi Drive segera hadir.", icon="☁️")
+        if st.button("📓 Notebooks", use_container_width=True):
+            st.toast("Akses Notebook terbuka.", icon="📓")
 
 # 9. Input AI Utama
 if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
