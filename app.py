@@ -141,9 +141,8 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
 
         with st.chat_message("assistant"):
             with st.spinner(f"DIMA-X memproses ({mode_dima})..."):
-                # MENGGUNAKAN GEMINI-2.5-FLASH TERBARU
                 response = client.models.generate_content(
-                    model=model='gemini-3.6-flash', 
+                    model='gemini-3.6-flash',  # <-- PASTIKAN HANYA ADA SATU KATA 'model='
                     contents=final_prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
