@@ -6,16 +6,16 @@ import PyPDF2
 # 1. Konfigurasi Halaman (Lebih Clean & Terpusat)
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered")
 
-# Custom CSS ala ChatGPT Dark Mode (TANPA KODE PERUSAK LAYAR)
+# Custom CSS ala ChatGPT Dark Mode
 st.markdown("""
     <style>
     /* Warna background solid dark abu-abu tua ala ChatGPT */
     .stApp { background-color: #212121; color: #ececec; }
     
-    /* Menyembunyikan elemen bawaan Streamlit (header/footer) */
+    /* Menyembunyikan elemen bawaan Streamlit (footer) */
+    /* Header dibiarkan agar tombol sidebar kiri tetap bisa diklik */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     
     /* Mempercantik tombol Obrolan Baru */
     .stButton>button {
@@ -51,7 +51,7 @@ with st.sidebar:
     # Desain UI Riwayat (Tampilan Visual)
     st.caption("Hari Ini")
     st.markdown("💬 Diskusi Sistem Informasi")
-    st.markdown("💬 Laporan Disbudporapar")
+    st.markdown("💬 Laporan Pekerjaan")
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.caption("Kemarin")
@@ -65,17 +65,17 @@ with st.sidebar:
     mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     uploaded_file = st.file_uploader("📄 Upload Dokumen", type=['pdf', 'txt'])
 
-# 3. Logika Memori Asisten Pribadi
-base_memory = "Penggunamu bernama Dimas, seorang mahasiswa Sistem Informasi dan staf administrasi di Disbudporapar Kabupaten Landak."
+# 3. Logika Memori Umum (Netral)
+base_memory = "Kamu adalah DIMA-X, asisten AI yang cerdas dan profesional. Tugasmu membantu pengguna dengan cepat dan akurat. Gunakan bahasa yang natural dan bersahabat. Jangan menebak nama pengguna, sapa secara umum kecuali pengguna telah memperkenalkan namanya."
 
 if "STUDY-X" in mode_dima:
-    system_instruction = f"Kamu adalah DIMA-X mode STUDY-X. {base_memory} Bantu Dimas belajar perkuliahan, merangkum modul, dan menjelaskan konsep IT secara ringkas."
+    system_instruction = f"Mode STUDY-X. {base_memory} Fokusmu membantu pengguna belajar, merangkum materi kampus, dan menjelaskan konsep edukasi."
 elif "WORK-X" in mode_dima:
-    system_instruction = f"Kamu adalah DIMA-X mode WORK-X. {base_memory} Bantu Dimas mengurus pekerjaan administratif dinas, laporan, dan surat resmi."
+    system_instruction = f"Mode WORK-X. {base_memory} Fokusmu membantu pengguna mengurus pekerjaan profesional, menyusun laporan, dan surat resmi."
 elif "WRITE-X" in mode_dima:
-    system_instruction = f"Kamu adalah DIMA-X mode WRITE-X. {base_memory} Perbaiki tata bahasa dan buat tulisan Dimas menjadi lebih terstruktur."
+    system_instruction = f"Mode WRITE-X. {base_memory} Fokusmu memperbaiki tata bahasa dan merapikan tulisan pengguna."
 else:
-    system_instruction = f"Kamu adalah DIMA-X, asisten AI pribadi yang cerdas. {base_memory} Berikan jawaban yang natural, praktis, dan langsung ke inti."
+    system_instruction = base_memory
 
 def get_document_text(file):
     text = ""
@@ -88,23 +88,22 @@ def get_document_text(file):
                 text += page.extract_text() + "\n"
     return text
 
-# 4. Layar Selamat Datang (Minimalis ala ChatGPT)
-# Hanya muncul jika belum ada obrolan sama sekali
+# 4. Layar Selamat Datang (Tanpa Nama Spesifik)
 if len(st.session_state.messages) == 0:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; color: white; font-size: 2.5rem;'>🚀 DIMA-X</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #9ca3af; font-size: 1.1rem;'>Apa yang bisa saya bantu hari ini, Mas Dimas?</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #9ca3af; font-size: 1.1rem;'>Apa yang bisa saya bantu hari ini?</p>", unsafe_allow_html=True)
     st.markdown("<br><br>", unsafe_allow_html=True)
     
     # Pintasan Cepat di tengah layar
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🎓 Ringkas materi kuliah", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": "Bantu saya meringkas materi kuliah Sistem Informasi hari ini."})
+        if st.button("🎓 Ringkas materi", use_container_width=True):
+            st.session_state.messages.append({"role": "user", "content": "Bantu saya meringkas materi atau dokumen hari ini."})
             st.rerun()
     with col2:
-        if st.button("💼 Buat laporan dinas", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": "Bantu saya menyusun kerangka laporan kegiatan Disbudporapar."})
+        if st.button("💼 Buat laporan kerja", use_container_width=True):
+            st.session_state.messages.append({"role": "user", "content": "Bantu saya menyusun kerangka laporan pekerjaan."})
             st.rerun()
 
 # 5. Menampilkan Riwayat Pesan di Layar
