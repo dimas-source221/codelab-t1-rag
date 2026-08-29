@@ -320,10 +320,10 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
             "parts": [{"text": final_prompt_text}]
         })
 
-        with st.chat_message("assistant"):
+       with st.chat_message("assistant"):
             with st.spinner("DIMA-X sedang memproses..."):
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash', 
+                    model='gemini-3.6-flash', # Ubah kembali ke versi ini
                     contents=formatted_contents, 
                     config=types.GenerateContentConfig(system_instruction=system_instruction)
                 )
