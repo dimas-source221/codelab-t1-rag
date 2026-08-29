@@ -151,15 +151,15 @@ with st.sidebar:
         st.divider()
         st.caption("WORKSPACE & SETTINGS")
         
-        # FINALISASI MAPPING API GOOGLE (Anti 404)
+        # FINALISASI MAPPING API GOOGLE (Kembali ke engine v3 yang terbukti jalan)
         model_version = st.selectbox("Versi Engine", ["🚀 DIMX 3.6 pro", "⚡ DIMX 3.5 plus-lite", "🧠 DIMX 3.1 pro-max"])
         
         if "3.5" in model_version:
-            active_model = 'gemini-1.5-flash'  
+            active_model = 'gemini-3.5-flash'  
         elif "3.6" in model_version:
-            active_model = 'gemini-1.5-flash'  
+            active_model = 'gemini-3.6-flash'  
         else:
-            active_model = 'gemini-1.5-pro' # Endpoint resmi dan stabil 
+            active_model = 'gemini-3.6-flash' # Kita paksa ke 3.6 karena 3.1 pro-max sebelumnya error 
             
         mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
 
@@ -190,7 +190,7 @@ else:
 def route_model(prompt_text, selected_model):
     heavy_keywords = ["analisis", "riset", "bug", "error", "kode", "program", "evaluasi", "kompleks", "strategi", "sistem"]
     if any(word in prompt_text.lower() for word in heavy_keywords):
-        return 'gemini-1.5-pro'
+        return 'gemini-3.6-flash' # Lempar ke mesin terkuat yang valid
     return selected_model
 
 # 6. HALAMAN 1: AI WORKSPACE
@@ -295,7 +295,7 @@ if st.session_state.current_page == "💬 AI Workspace":
                 formatted_contents.append({"role": "user", "parts": parts_payload})
                 
                 final_model_to_use = route_model(prompt_text, active_model)
-                model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-1.5-pro' else "🧠 Mode Analisis Dalam"
+                model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-3.6-flash' else "🧠 Mode Analisis Dalam"
 
                 with st.chat_message("assistant"):
                     with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
