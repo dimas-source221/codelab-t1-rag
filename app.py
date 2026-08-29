@@ -192,9 +192,15 @@ else:
 
 # LOGIKA SMART ROUTER
 def route_model(prompt_text, selected_model):
+    # 1. Deteksi sapaan atau pesan sangat pendek (Jalur Cepat)
+    if len(prompt_text) < 15 or prompt_text.lower().strip() in ["halo", "hi", "halo dimax", "test", "tes"]:
+        return "gemini-1.5-flash"
+        
+    # 2. Logika Smart Router untuk tugas berat
     heavy_keywords = ["analisis", "riset", "bug", "error", "kode", "program", "evaluasi", "kompleks", "strategi", "sistem"]
     if any(word in prompt_text.lower() for word in heavy_keywords):
         return 'gemini-3.6-flash' # Lempar ke mesin terkuat yang valid
+        
     return selected_model
 
 # 6. HALAMAN 1: AI WORKSPACE
