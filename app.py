@@ -121,6 +121,10 @@ with st.sidebar:
     st.caption("RIWAYAT OBROLAN")
     
     for s_id, s_data in chat_sessions.items():
+        # PERBAIKAN: Sembunyikan obrolan yang belum ada pesannya dari daftar riwayat
+        if len(s_data.get("messages", [])) == 0:
+            continue
+            
         col_title, col_menu = st.columns([8, 2])
         pin_icon = "📌 " if s_data.get('is_pinned', False) else "💬 "
         
@@ -131,22 +135,19 @@ with st.sidebar:
         with col_menu:
             with st.popover("⋮"):
                 st.caption("Opsi Obrolan")
-                # Fitur Pin Aktif
                 pin_label = "Unpin" if s_data.get('is_pinned', False) else "📌 Pin"
                 if st.button(pin_label, key=f"pin_{s_id}", use_container_width=True):
                     new_status = not s_data.get('is_pinned', False)
                     db.collection(collection_name).document(s_id).update({"is_pinned": new_status})
                     st.rerun()
                 
-                # Fitur Rename Aktif
                 new_title = st.text_input("Ganti Nama", value=s_data['title'], key=f"ren_input_{s_id}")
                 if st.button("💾 Simpan Nama", key=f"save_ren_{s_id}", use_container_width=True):
                     db.collection(collection_name).document(s_id).update({"title": new_title})
                     st.rerun()
                 
-                st.download_button("⬇️ Download PDF", data="Ekspor PDF (Fitur Text)", file_name=f"{s_data['title']}.pdf", key=f"dl_{s_id}", use_container_width=True)
+                st.download_button("⬇️ Download PDF", data="Ekspor PDF", file_name=f"{s_data['title']}.pdf", key=f"dl_{s_id}", use_container_width=True)
                 
-                # Fitur Add to Notebook Aktif
                 if st.button("📓 Add to Notebook", key=f"note_{s_id}", use_container_width=True):
                     db.collection("dimax_notebooks").add({"session_id": s_id, "title": s_data['title'], "content": s_data['messages']})
                     st.toast("Berhasil disimpan ke Notebook Database!", icon="📓")
