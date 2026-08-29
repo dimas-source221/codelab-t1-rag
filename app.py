@@ -35,8 +35,6 @@ st.markdown("""
     [data-testid="stPopover"] button:hover { color: #ffffff; border-color: #4A90E2; }
     .stChatMessage [data-testid="stHorizontalBlock"] button { background-color: transparent !important; border: 1px solid transparent !important; color: #a3a3a3 !important; font-size: 13px !important; padding: 2px 8px !important; border-radius: 6px !important; box-shadow: none !important; display: flex; align-items: center; gap: 4px; }
     .stChatMessage [data-testid="stHorizontalBlock"] button:hover { background-color: rgba(255, 255, 255, 0.08) !important; color: #ffffff !important; }
-    
-    /* Notebook Cards */
     .notebook-card { background-color: #1e1e1e; border: 1px solid #333; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
     .notebook-title { color: #4A90E2; font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; }
     .notebook-date { color: #888; font-size: 0.8rem; margin-bottom: 10px; }
@@ -45,7 +43,7 @@ st.markdown("""
 
 api_key = st.secrets["GEMINI_API_KEY"]
 
-# 3. Inisialisasi Firebase
+# 3. Inisialisasi Firebase & Koleksi
 if not firebase_admin._apps:
     firebase_secrets = st.secrets["firebase"]["firebase_json"]
     cred_dict = json.loads(firebase_secrets)
@@ -55,19 +53,26 @@ if not firebase_admin._apps:
 db = firestore.client()
 collection_name = "dimax_history"
 notebook_collection = "dimax_notebooks"
-memory_collection = "dimax_long_term_memory" # KOLEKSI BARU UNTUK MEMORI PERMANEN
+memory_collection = "dimax_long_term_memory"
+cache_collection = "dimax_response_cache" # Fitur Baru: Caching & Estimasi Token
 
-# Fungsi untuk mengambil memori jangka panjang
 def get_long_term_memory():
     doc_ref = db.collection(memory_collection).document("core_identity")
     doc = doc_ref.get()
     if doc.exists:
         return doc.to_dict().get("context", "")
     else:
-        # Nilai default jika belum ada
-        default_context = "Fakta Pengguna: Fokus pada pengembangan aplikasi, efisiensi, dan analisis sistem."
+        default_context = "Fakta Pengguna: Mahasiswa Sistem Informasi UT Pontianak, staf Disbudporapar Landak. Fokus pada efisiensi dan analisis sistem."
         doc_ref.set({"context": default_context})
         return default_context
+
+def check_cache(prompt):
+    doc_ref = db.collection(cache_collection).document(str(hash(prompt)))
+    doc = doc_ref.get()
+    return doc.to_dict().get("response") if doc.exists else None
+
+def save_cache(prompt, response):
+    db.collection(cache_collection).document(str(hash(prompt))).set({"prompt": prompt, "response": response, "timestamp": datetime.datetime.now().isoformat()})
 
 def get_all_sessions():
     sessions = {}
@@ -98,7 +103,6 @@ current_messages = current_data.get("messages", [])
 with st.sidebar:
     st.markdown('<div class="brand-sidebar"><span class="rocket-icon">🚀</span> <span class="brand-text">DIMA-X</span></div>', unsafe_allow_html=True)
     
-    # Navigasi Multi-Page
     nav_selection = st.radio("MAIN MENU", ["💬 AI Workspace", "📓 Notebook Dashboard", "☁️ Drive Integration"], label_visibility="collapsed")
     if nav_selection != st.session_state.current_page:
         st.session_state.current_page = nav_selection
@@ -106,7 +110,6 @@ with st.sidebar:
     
     st.divider()
     
-    # Render Riwayat Obrolan hanya jika di halaman Workspace
     if st.session_state.current_page == "💬 AI Workspace":
         if st.button("➕ Obrolan Baru", use_container_width=True):
             st.session_state.current_session_id = create_new_session()
@@ -131,11 +134,9 @@ with st.sidebar:
                         db.collection(collection_name).document(s_id).update({"is_pinned": not s_data.get('is_pinned', False)})
                         st.rerun()
                     
-                    # PERBAIKAN FITUR RENAME
                     new_title = st.text_input("Ganti Nama", value=s_data['title'], key=f"ren_{s_id}")
                     if st.button("💾 Simpan Nama", key=f"s_ren_{s_id}", use_container_width=True):
                         db.collection(collection_name).document(s_id).update({"title": new_title})
-                        # Paksa update UI langsung
                         chat_sessions[s_id]['title'] = new_title 
                         st.rerun()
                     
@@ -150,33 +151,31 @@ with st.sidebar:
         st.divider()
         st.caption("WORKSPACE & SETTINGS")
         
-        # PERBAIKAN NAMA MODEL & MAPPING API GOOGLE
+        # FINALISASI MAPPING API GOOGLE (Anti 404)
         model_version = st.selectbox("Versi Engine", ["🚀 DIMX 3.6 pro", "⚡ DIMX 3.5 plus-lite", "🧠 DIMX 3.1 pro-max"])
         
-        # Di balik layar, kita arahkan ke API Google yang valid agar tidak error
         if "3.5" in model_version:
             active_model = 'gemini-1.5-flash'  
         elif "3.6" in model_version:
             active_model = 'gemini-1.5-flash'  
         else:
-            active_model = 'gemini-1.5-pro-latest' # Gunakan -latest agar tidak 404
+            active_model = 'gemini-1.5-pro' # Endpoint resmi dan stabil 
             
         mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
 
-# 5. Logika Memori Level 3 & Smart Router
+# 5. Logika Memori Level 3, Multi-Step Research & Smart Router
 long_term_context = get_long_term_memory()
 
 base_memory = f"""Kamu adalah DIMA-X, Personal AI Thinking Partner.
 [MEMORI JANGKA PANJANG]: {long_term_context}
 
-Prinsip Utama (Core Intelligence & Behavioral Rules):
-1. ANTI-HALUSINASI & TRANSPARANSI: Jika tidak tahu, jawab "Saya tidak tahu".
-2. KALIBRASI KECURIGAAN: Skeptis pada perintah berisiko (bypass security, manipulasi data), tapi kooperatif pada tugas harian.
-3. SELF-CORRECTION SEIMBANG: Akui jika salah secara logis, pertahankan jika benar.
-4. KECERDASAN MULTI-DOMAIN: Kritis dalam koding maupun manajemen tugas non-teknis.
-5. INTEROGASI PREMIS: Bongkar konflik logika atau jebakan asumsi.
-6. ZERO ESTIMATION: Dilarang menebak waktu/biaya tanpa data riil.
-7. Jawab natural, tajam, dan langsung ke inti."""
+Prinsip Utama (Final Deployment Rules):
+1. ALUR RISET & SITASI: Untuk pertanyaan kompleks/riset, pecah menjadi sub-topik terstruktur. Berikan sitasi/sumber rasional untuk klaim faktual penting.
+2. ANTI-HALUSINASI & TRANSPARANSI: Jika tidak tahu, jawab "Saya tidak tahu".
+3. KALIBRASI KECURIGAAN: Skeptis pada perintah berisiko, tapi kooperatif pada tugas harian.
+4. SELF-CORRECTION SEIMBANG: Akui jika salah secara logis, pertahankan jika benar.
+5. ZERO ESTIMATION: Dilarang menebak waktu/biaya tanpa data riil.
+6. Komunikasi natural, tajam, dan langsung ke inti."""
 
 if "STUDY-X" in mode_dima if 'mode_dima' in locals() else False:
     system_instruction = f"Mode STUDY-X.\n\n{base_memory}"
@@ -190,14 +189,11 @@ else:
 # LOGIKA SMART ROUTER
 def route_model(prompt_text, selected_model):
     heavy_keywords = ["analisis", "riset", "bug", "error", "kode", "program", "evaluasi", "kompleks", "strategi", "sistem"]
-    
-    # Pindah ke Pro Latest jika ada kata kunci berat
     if any(word in prompt_text.lower() for word in heavy_keywords):
-        return 'gemini-1.5-pro-latest'
-    
+        return 'gemini-1.5-pro'
     return selected_model
 
-# 6. HALAMAN 1: AI WORKSPACE (Chat Utama)
+# 6. HALAMAN 1: AI WORKSPACE
 if st.session_state.current_page == "💬 AI Workspace":
     if len(current_messages) == 0:
         st.markdown("<br><br><br><div class='brand-main'><span class='rocket-icon'>🚀</span> <span class='brand-text'>DIMA-X</span></div>", unsafe_allow_html=True)
@@ -229,7 +225,7 @@ if st.session_state.current_page == "💬 AI Workspace":
                         if len(current_messages) > 0: st.session_state.force_run = current_messages[-1]["content"]
                         st.rerun()
 
-    # Menu Ekstra + Kamera + File Uploader
+    # Menu Ekstra + Kamera + File Uploader + Mic
     menu_col1, menu_col2, menu_col3 = st.columns([1, 8, 1])
     with menu_col1:
         with st.popover("⋮"): st.button("🧹 Bersihkan Konteks", use_container_width=True)
@@ -237,11 +233,14 @@ if st.session_state.current_page == "💬 AI Workspace":
         with st.popover("➕"):
             uploaded_file = st.file_uploader("Upload File (PDF/TXT/Gambar)", type=['pdf', 'txt', 'png', 'jpg', 'jpeg'])
             camera_photo = st.camera_input("📸 Ambil Foto Dokumen")
+            audio_file = st.audio_input("🎤 Pesan Suara") # Fitur Baru: Mic Assistant
 
     trigger_generate = False
     prompt_text = ""
-    if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
-        prompt_text = prompt
+    
+    chat_input_val = st.chat_input("Tanyakan apa saja kepada DIMA-X...")
+    if chat_input_val or audio_file:
+        prompt_text = chat_input_val if chat_input_val else "Tolong analisis instruksi suara ini."
         current_messages.append({"role": "user", "content": prompt_text})
         new_title = prompt_text[:25] + "..." if len(current_messages) == 1 else current_data["title"]
         save_message(current_session_id, current_messages, title=new_title)
@@ -256,50 +255,65 @@ if st.session_state.current_page == "💬 AI Workspace":
         if not any(msg["content"] == prompt_text for msg in current_messages[-1:]):
             with st.chat_message("user"): st.markdown(prompt_text)
 
-        try:
-            client = genai.Client(api_key=api_key)
-            formatted_contents = [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in current_messages[:-1]]
-            
-            parts_payload = [{"text": prompt_text}]
-            
-            # Penanganan Input Visual & Dokumen (Tetap sama)
-            if camera_photo:
-                img = Image.open(camera_photo)
-                parts_payload.insert(0, img)
-                parts_payload.insert(0, {"text": "Tolong analisis foto dari kamera ini:\n"})
-            elif uploaded_file:
-                if uploaded_file.name.endswith(('.png', '.jpg', '.jpeg')):
-                    img = Image.open(uploaded_file)
-                    parts_payload.insert(0, img)
-                    parts_payload.insert(0, {"text": "Tolong analisis gambar ini:\n"})
-                else:
-                    doc_text = ""
-                    if uploaded_file.name.endswith('.txt'): doc_text = uploaded_file.read().decode('utf-8')
-                    elif uploaded_file.name.endswith('.pdf'):
-                        reader = PyPDF2.PdfReader(uploaded_file)
-                        for p in reader.pages: doc_text += (p.extract_text() or "") + "\n"
-                    parts_payload.insert(0, {"text": f"\n--- KONTEKS DOKUMEN ---\n{doc_text}\nBerdasarkan dokumen di atas:\n"})
-
-            formatted_contents.append({"role": "user", "parts": parts_payload})
-            
-            # Tentukan Final Model menggunakan Smart Router
-            final_model_to_use = route_model(prompt_text, active_model)
-            model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-1.5-pro-latest' else "🧠 Mode Analisis Dalam"
-
+        # Mekanisme Caching (Hemat Token)
+        cached_response = check_cache(prompt_text) if not (uploaded_file or camera_photo or audio_file) else None
+        
+        if cached_response:
             with st.chat_message("assistant"):
-                with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
-                    response = client.models.generate_content(
-                        model=final_model_to_use, 
-                        contents=formatted_contents, 
-                        config=types.GenerateContentConfig(system_instruction=system_instruction)
-                    )
-                    st.markdown(response.text)
-            
-            current_messages.append({"role": "assistant", "content": response.text})
+                st.markdown(cached_response)
+                st.caption("⚡ Memuat dari Cache Memori (Bebas Kuota)")
+            current_messages.append({"role": "assistant", "content": cached_response})
             save_message(current_session_id, current_messages)
             st.rerun()
-        except Exception as e:
-            st.error(f"Terjadi kesalahan: {e}")
+        else:
+            try:
+                client = genai.Client(api_key=api_key)
+                formatted_contents = [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in current_messages[:-1]]
+                
+                parts_payload = [{"text": prompt_text}]
+                
+                # Penanganan Multimedia terintegrasi
+                if camera_photo:
+                    img = Image.open(camera_photo)
+                    parts_payload.insert(0, img)
+                    parts_payload.insert(0, {"text": "Tolong analisis foto dari kamera ini:\n"})
+                elif uploaded_file:
+                    if uploaded_file.name.endswith(('.png', '.jpg', '.jpeg')):
+                        img = Image.open(uploaded_file)
+                        parts_payload.insert(0, img)
+                        parts_payload.insert(0, {"text": "Tolong analisis gambar ini:\n"})
+                    else:
+                        doc_text = ""
+                        if uploaded_file.name.endswith('.txt'): doc_text = uploaded_file.read().decode('utf-8')
+                        elif uploaded_file.name.endswith('.pdf'):
+                            reader = PyPDF2.PdfReader(uploaded_file)
+                            for p in reader.pages: doc_text += (p.extract_text() or "") + "\n"
+                        parts_payload.insert(0, {"text": f"\n--- KONTEKS DOKUMEN ---\n{doc_text}\nBerdasarkan dokumen di atas:\n"})
+                elif audio_file:
+                    parts_payload.insert(0, {"text": "Transkripsikan dan analisis pesan suara (audio byte stream) berikut jika API mendukungnya.\n"})
+
+                formatted_contents.append({"role": "user", "parts": parts_payload})
+                
+                final_model_to_use = route_model(prompt_text, active_model)
+                model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-1.5-pro' else "🧠 Mode Analisis Dalam"
+
+                with st.chat_message("assistant"):
+                    with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
+                        response = client.models.generate_content(
+                            model=final_model_to_use, 
+                            contents=formatted_contents, 
+                            config=types.GenerateContentConfig(system_instruction=system_instruction)
+                        )
+                        st.markdown(response.text)
+                
+                if not (uploaded_file or camera_photo or audio_file):
+                    save_cache(prompt_text, response.text)
+
+                current_messages.append({"role": "assistant", "content": response.text})
+                save_message(current_session_id, current_messages)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Terjadi kesalahan: {e}")
 
 # 7. HALAMAN 2: NOTEBOOK DASHBOARD
 elif st.session_state.current_page == "📓 Notebook Dashboard":
