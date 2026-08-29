@@ -174,7 +174,7 @@ Prinsip Utama (Final Deployment Rules):
 2. ANTI-HALUSINASI & TRANSPARANSI: Jika tidak tahu, jawab "Saya tidak tahu".
 3. KALIBRASI KECURIGAAN: Skeptis pada perintah berisiko, tapi kooperatif pada tugas harian.
 4. SELF-CORRECTION SEIMBANG: Akui jika salah secara logis, pertahankan jika benar.
-5. ZERO ESTIMATION: Dilarang menebak waktu/biaya tanpa data riil.
+5. ZERO ESTIMATION & ABSOLUTE CLAIMS: Dilarang memberikan estimasi angka pasti tanpa spesifikasi final. Hindari klaim kepastian teknis 100% mutlak; utamakan penilaian risiko dan probabilitas yang terukur.
 6. Komunikasi natural, tajam, dan langsung ke inti."""
 
 if "STUDY-X" in mode_dima if 'mode_dima' in locals() else False:
