@@ -118,9 +118,12 @@ with st.sidebar:
                         db.collection(collection_name).document(s_id).update({"is_pinned": not s_data.get('is_pinned', False)})
                         st.rerun()
                     
+                    # PERBAIKAN FITUR RENAME
                     new_title = st.text_input("Ganti Nama", value=s_data['title'], key=f"ren_{s_id}")
                     if st.button("💾 Simpan Nama", key=f"s_ren_{s_id}", use_container_width=True):
                         db.collection(collection_name).document(s_id).update({"title": new_title})
+                        # Paksa update UI langsung
+                        chat_sessions[s_id]['title'] = new_title 
                         st.rerun()
                     
                     if st.button("📓 Add to Notebook", key=f"note_{s_id}", use_container_width=True):
@@ -134,14 +137,16 @@ with st.sidebar:
         st.divider()
         st.caption("WORKSPACE & SETTINGS")
         
-        # PEMILIH VERSI MODEL AI
-        model_version = st.selectbox("Versi Engine", ["🚀 DIM 3.6 Flash X", "⚡ DIM 3.5 Lite X", "🧠 DIM 3.1 Pro X"])
-        if "3.6" in model_version:
-            active_model = 'gemini-3.6-flash'
-        elif "3.5" in model_version:
-            active_model = 'gemini-3.5-lite'
+        # PERBAIKAN NAMA MODEL & MAPPING API GOOGLE
+        model_version = st.selectbox("Versi Engine", ["🚀 DIMX 3.6 pro", "⚡ DIMX 3.5 plus-lite", "🧠 DIMX 3.1 pro-max"])
+        
+        # Di balik layar, kita arahkan ke API Google yang valid agar tidak error
+        if "3.5" in model_version:
+            active_model = 'gemini-1.5-flash'  # Engine cepat & ringan
+        elif "3.6" in model_version:
+            active_model = 'gemini-1.5-pro'    # Engine pintar & analitis
         else:
-            active_model = 'gemini-3.1-pro'
+            active_model = 'gemini-1.5-pro'    # Engine pintar & analitis (Pro Max)
             
         mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
 
@@ -249,10 +254,11 @@ if st.session_state.current_page == "💬 AI Workspace":
 
             formatted_contents.append({"role": "user", "parts": parts_payload})
 
-            with st.chat_message("assistant"):
-                with st.spinner(f"DIMA-X ({active_model}) sedang memproses..."):
+           with st.chat_message("assistant"):
+                # PERBAIKAN ANIMASI LOADING (Lebih bersih dan elegan)
+                with st.spinner("DIMA-X sedang menulis..."):
                     response = client.models.generate_content(
-                        model=active_model, # Memanggil versi model yang dipilih dari sidebar
+                        model=active_model, 
                         contents=formatted_contents, 
                         config=types.GenerateContentConfig(system_instruction=system_instruction)
                     )
