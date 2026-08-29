@@ -88,7 +88,7 @@ def create_new_session():
 def save_message(session_id, messages, title=None):
     update_data = {"messages": messages, "updated_at": datetime.datetime.now().isoformat()}
     if title: update_data["title"] = title
-    db.collection(collection_name).document(session_id).update(update_data)
+    db.collection(collection_name).document(session_id).set(update_data, merge=True)
 
 chat_sessions = get_all_sessions()
 if "current_session_id" not in st.session_state:
