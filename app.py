@@ -229,15 +229,34 @@ if st.session_state.current_page == "💬 AI Workspace":
                         if len(current_messages) > 0: st.session_state.force_run = current_messages[-1]["content"]
                         st.rerun()
 
+    # Inisialisasi variabel kosong agar tidak error di bawah
+    uploaded_file = None
+    camera_photo = None
+    audio_file = None
+
     # Menu Ekstra + Kamera + File Uploader + Mic
     menu_col1, menu_col2, menu_col3 = st.columns([1, 8, 1])
     with menu_col1:
-        with st.popover("⋮"): st.button("🧹 Bersihkan Konteks", use_container_width=True)
+        with st.popover("⋮"): 
+            st.button("🧹 Bersihkan Konteks", use_container_width=True)
     with menu_col3:
         with st.popover("➕"):
-            uploaded_file = st.file_uploader("Upload File (PDF/TXT/Gambar)", type=['pdf', 'txt', 'png', 'jpg', 'jpeg'])
-            camera_photo = st.camera_input("📸 Ambil Foto Dokumen")
-            audio_file = st.audio_input("🎤 Pesan Suara") # Fitur Baru: Mic Assistant
+            # Membuat menu pilihan seperti di Gemini
+            input_mode = st.radio(
+                "Pilih Input:", 
+                ["📁 Upload File", "📸 Kamera", "🎤 Pesan Suara"],
+                label_visibility="collapsed"
+            )
+            
+            st.divider() # Garis pemisah biar rapi
+            
+            # Kamera atau Mic HANYA akan aktif jika dipilih
+            if input_mode == "📁 Upload File":
+                uploaded_file = st.file_uploader("Format: PDF, TXT, PNG, JPG", type=['pdf', 'txt', 'png', 'jpg', 'jpeg'])
+            elif input_mode == "📸 Kamera":
+                camera_photo = st.camera_input("Ambil Foto Dokumen")
+            elif input_mode == "🎤 Pesan Suara":
+                audio_file = st.audio_input("Tekan untuk merekam")
 
     trigger_generate = False
     prompt_text = ""
