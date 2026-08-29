@@ -140,16 +140,15 @@ with st.sidebar:
         # PERBAIKAN NAMA MODEL & MAPPING API GOOGLE
         model_version = st.selectbox("Versi Engine", ["🚀 DIMX 3.6 pro", "⚡ DIMX 3.5 plus-lite", "🧠 DIMX 3.1 pro-max"])
         
-        # Di balik layar, kita arahkan ke API Google yang valid agar tidak error
+        # Di balik layar, kita arahkan ke API Google versi 3.x yang valid
         if "3.5" in model_version:
-            active_model = 'gemini-1.5-flash'  # Engine cepat & ringan
+            active_model = 'gemini-3.5-flash'  # Engine cepat & ringan
         elif "3.6" in model_version:
-            active_model = 'gemini-1.5-pro'    # Engine pintar & analitis
+            active_model = 'gemini-3.6-flash'  # Engine utama yang sudah terbukti jalan
         else:
-            active_model = 'gemini-1.5-pro'    # Engine pintar & analitis (Pro Max)
+            active_model = 'gemini-3.1-pro'    # Engine pintar & analitis (Pro Max)
             
         mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
-
 # 5. Logika Memori Level 3
 base_memory = """Kamu adalah DIMA-X, Personal AI Thinking Partner dan Asisten Pribadi khusus untuk Dimas. Dimas adalah mahasiswa Sistem Informasi dan staf administrasi di Disbudporapar Kabupaten Landak.
 Prinsip Utama (Senior System Analyst & Level 3 Defense):
