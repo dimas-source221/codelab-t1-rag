@@ -68,6 +68,7 @@ def get_long_term_memory():
         default_context = "Fakta Pengguna: Fokus pada pengembangan aplikasi, efisiensi, dan analisis sistem."
         doc_ref.set({"context": default_context})
         return default_context
+
 def get_all_sessions():
     sessions = {}
     docs = db.collection(collection_name).stream()
@@ -161,6 +162,7 @@ with st.sidebar:
             active_model = 'gemini-3.1-pro'    # Backend mesin Pro yang paling stabil dan terjamin jalan
             
         mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
+
 # 5. Logika Memori Level 3 & Smart Router
 long_term_context = get_long_term_memory()
 
@@ -295,7 +297,6 @@ if st.session_state.current_page == "💬 AI Workspace":
                     )
                     st.markdown(response.text)
             
-            # ... (kode current_messages.append dan st.rerun() sebelumnya) ...
             current_messages.append({"role": "assistant", "content": response.text})
             save_message(current_session_id, current_messages)
             st.rerun()
