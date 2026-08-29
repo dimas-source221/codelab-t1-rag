@@ -155,11 +155,11 @@ with st.sidebar:
         
         # Di balik layar, kita arahkan ke API Google yang valid agar tidak error
         if "3.5" in model_version:
-            active_model = 'gemini-3.5-flash'  # Engine cepat & ringan
+            active_model = 'gemini-1.5-flash'  
         elif "3.6" in model_version:
-            active_model = 'gemini-3.6-flash'  # Engine utama 
+            active_model = 'gemini-1.5-flash'  
         else:
-            active_model = 'gemini-3.1-pro'    # Backend mesin Pro yang paling stabil dan terjamin jalan
+            active_model = 'gemini-1.5-pro-latest' # Gunakan -latest agar tidak 404
             
         mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
 
@@ -189,14 +189,12 @@ else:
 
 # LOGIKA SMART ROUTER
 def route_model(prompt_text, selected_model):
-    # Kata kunci yang menandakan beban kognitif tinggi (coding, analisis, logika)
     heavy_keywords = ["analisis", "riset", "bug", "error", "kode", "program", "evaluasi", "kompleks", "strategi", "sistem"]
     
-    # Jika prompt mengandung kata kunci berat, paksa pindah ke Pro (meski user memilih Lite/Flash)
+    # Pindah ke Pro Latest jika ada kata kunci berat
     if any(word in prompt_text.lower() for word in heavy_keywords):
-        return 'gemini-1.5-pro'
+        return 'gemini-1.5-pro-latest'
     
-    # Jika sekadar obrolan biasa, gunakan model yang dipilih user
     return selected_model
 
 # 6. HALAMAN 1: AI WORKSPACE (Chat Utama)
@@ -286,7 +284,7 @@ if st.session_state.current_page == "💬 AI Workspace":
             
             # Tentukan Final Model menggunakan Smart Router
             final_model_to_use = route_model(prompt_text, active_model)
-            model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-1.5-pro' else "🧠 Mode Analisis Dalam"
+            model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-1.5-pro-latest' else "🧠 Mode Analisis Dalam"
 
             with st.chat_message("assistant"):
                 with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
