@@ -61,7 +61,7 @@ memory_collection = "dimax_long_term_memory" # KOLEKSI BARU UNTUK MEMORI PERMANE
 def get_long_term_memory():
     doc_ref = db.collection(memory_collection).document("core_identity")
     doc = doc_ref.get()
-    if doc.exists():
+    if doc.exists:
         return doc.to_dict().get("context", "")
     else:
         # Nilai default jika belum ada
