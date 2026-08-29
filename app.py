@@ -135,10 +135,10 @@ with st.sidebar:
         st.caption("WORKSPACE & SETTINGS")
         
         # PEMILIH VERSI MODEL AI
-        model_version = st.selectbox("Versi Engine", ["🚀 Gemini 3.6 Flash", "⚡ Gemini 3.5 Lite", "🧠 Gemini 3.1 Pro"])
-        if "3.6 Flash" in model_version:
+        model_version = st.selectbox("Versi Engine", ["🚀 DIM 3.6 Flash X", "⚡ DIM 3.5 Lite X", "🧠 DIM 3.1 Pro X"])
+        if "3.6" in model_version:
             active_model = 'gemini-3.6-flash'
-        elif "3.5 Lite" in model_version:
+        elif "3.5" in model_version:
             active_model = 'gemini-3.5-lite'
         else:
             active_model = 'gemini-3.1-pro'
