@@ -254,7 +254,7 @@ if st.session_state.current_page == "💬 AI Workspace":
 
             formatted_contents.append({"role": "user", "parts": parts_payload})
 
-           with st.chat_message("assistant"):
+            with st.chat_message("assistant"):
                 # PERBAIKAN ANIMASI LOADING (Lebih bersih dan elegan)
                 with st.spinner("DIMA-X sedang menulis..."):
                     response = client.models.generate_content(
