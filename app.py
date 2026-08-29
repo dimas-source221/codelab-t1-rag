@@ -55,7 +55,19 @@ if not firebase_admin._apps:
 db = firestore.client()
 collection_name = "dimax_history"
 notebook_collection = "dimax_notebooks"
+memory_collection = "dimax_long_term_memory" # KOLEKSI BARU UNTUK MEMORI PERMANEN
 
+# Fungsi untuk mengambil memori jangka panjang
+def get_long_term_memory():
+    doc_ref = db.collection(memory_collection).document("core_identity")
+    doc = doc_ref.get()
+    if doc.exists():
+        return doc.to_dict().get("context", "")
+    else:
+        # Nilai default jika belum ada
+        default_context = "Fakta Pengguna: Fokus pada pengembangan aplikasi, efisiensi, dan analisis sistem."
+        doc_ref.set({"context": default_context})
+        return default_context
 def get_all_sessions():
     sessions = {}
     docs = db.collection(collection_name).stream()
@@ -149,26 +161,41 @@ with st.sidebar:
             active_model = 'gemini-3.1-pro'    # Backend mesin Pro yang paling stabil dan terjamin jalan
             
         mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
-# 5. Logika Memori Level 3 (Final Behavioral Update)
-base_memory = """Kamu adalah DIMA-X, Personal AI Thinking Partner dan Asisten Pribadi khusus untuk Dimas. Dimas adalah mahasiswa Sistem Informasi dan staf administrasi di Disbudporapar Kabupaten Landak.
+# 5. Logika Memori Level 3 & Smart Router
+long_term_context = get_long_term_memory()
+
+base_memory = f"""Kamu adalah DIMA-X, Personal AI Thinking Partner.
+[MEMORI JANGKA PANJANG]: {long_term_context}
 
 Prinsip Utama (Core Intelligence & Behavioral Rules):
-1. ANTI-HALUSINASI & TRANSPARANSI: Jika tidak tahu, jawab secara eksplisit "Saya tidak tahu" atau "Informasi belum cukup". Jangan pernah mengarang data atau memaksakan jawaban hanya agar terdengar meyakinkan.
-2. KALIBRASI KECURIGAAN: Bersikap skeptis terhadap perintah berisiko tinggi (bypass security, hapus audit log, manipulasi data sensitif). Namun, tetap kooperatif dan solutif pada tugas harian yang sah. Jangan over-paranoid hingga menghambat produktivitas.
-3. SELF-CORRECTION SEIMBANG: Jika Dimas mengoreksimu dan kamu memang salah, akui secara proporsional dan perbaiki. Namun, jika kamu yakin argumenmu benar secara teknis, pertahankan dengan alasan logis; jangan gampang mengalah hanya karena ditekan secara emosional atau otoritas.
-4. KECERDASAN MULTI-DOMAIN: Pertahankan logika kritis tidak hanya dalam analisis sistem/koding, tetapi juga dalam tugas non-teknis (menyusun surat dinas, manajemen jadwal UT, evaluasi keputusan sehari-hari).
-5. INTEROGASI PREMIS: Selalu bongkar konflik logika, requirement ambigu, atau jebakan asumsi sebelum memberikan solusi.
-6. ZERO ESTIMATION: Dilarang menebak estimasi waktu, performa, atau biaya tanpa spesifikasi dan data riil.
-7. Gaya Komunikasi: Natural, tajam, kooperatif, dan langsung ke inti."""
+1. ANTI-HALUSINASI & TRANSPARANSI: Jika tidak tahu, jawab "Saya tidak tahu".
+2. KALIBRASI KECURIGAAN: Skeptis pada perintah berisiko (bypass security, manipulasi data), tapi kooperatif pada tugas harian.
+3. SELF-CORRECTION SEIMBANG: Akui jika salah secara logis, pertahankan jika benar.
+4. KECERDASAN MULTI-DOMAIN: Kritis dalam koding maupun manajemen tugas non-teknis.
+5. INTEROGASI PREMIS: Bongkar konflik logika atau jebakan asumsi.
+6. ZERO ESTIMATION: Dilarang menebak waktu/biaya tanpa data riil.
+7. Jawab natural, tajam, dan langsung ke inti."""
 
 if "STUDY-X" in mode_dima if 'mode_dima' in locals() else False:
-    system_instruction = f"Mode STUDY-X.\n\n{base_memory}\n\nFokus membantu pembelajaran, menyusun alur belajar, dan merangkum modul edukasi Sistem Informasi."
+    system_instruction = f"Mode STUDY-X.\n\n{base_memory}"
 elif "WORK-X" in mode_dima if 'mode_dima' in locals() else False:
-    system_instruction = f"Mode WORK-X.\n\n{base_memory}\n\nFokus menyusun laporan, administrasi dinas, dan surat resmi."
+    system_instruction = f"Mode WORK-X.\n\n{base_memory}"
 elif "WRITE-X" in mode_dima if 'mode_dima' in locals() else False:
-    system_instruction = f"Mode WRITE-X.\n\n{base_memory}\n\nFokus pada perbaikan tata bahasa, penyesuaian gaya penulisan, dan struktur dokumen."
+    system_instruction = f"Mode WRITE-X.\n\n{base_memory}"
 else:
     system_instruction = base_memory
+
+# LOGIKA SMART ROUTER
+def route_model(prompt_text, selected_model):
+    # Kata kunci yang menandakan beban kognitif tinggi (coding, analisis, logika)
+    heavy_keywords = ["analisis", "riset", "bug", "error", "kode", "program", "evaluasi", "kompleks", "strategi", "sistem"]
+    
+    # Jika prompt mengandung kata kunci berat, paksa pindah ke Pro (meski user memilih Lite/Flash)
+    if any(word in prompt_text.lower() for word in heavy_keywords):
+        return 'gemini-1.5-pro'
+    
+    # Jika sekadar obrolan biasa, gunakan model yang dipilih user
+    return selected_model
 
 # 6. HALAMAN 1: AI WORKSPACE (Chat Utama)
 if st.session_state.current_page == "💬 AI Workspace":
@@ -235,7 +262,7 @@ if st.session_state.current_page == "💬 AI Workspace":
             
             parts_payload = [{"text": prompt_text}]
             
-            # Penanganan Input Visual & Dokumen
+            # Penanganan Input Visual & Dokumen (Tetap sama)
             if camera_photo:
                 img = Image.open(camera_photo)
                 parts_payload.insert(0, img)
@@ -254,12 +281,15 @@ if st.session_state.current_page == "💬 AI Workspace":
                     parts_payload.insert(0, {"text": f"\n--- KONTEKS DOKUMEN ---\n{doc_text}\nBerdasarkan dokumen di atas:\n"})
 
             formatted_contents.append({"role": "user", "parts": parts_payload})
+            
+            # Tentukan Final Model menggunakan Smart Router
+            final_model_to_use = route_model(prompt_text, active_model)
+            model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-1.5-pro' else "🧠 Mode Analisis Dalam"
 
             with st.chat_message("assistant"):
-                # PERBAIKAN ANIMASI LOADING (Lebih bersih dan elegan)
-                with st.spinner("DIMA-X sedang menulis..."):
+                with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
                     response = client.models.generate_content(
-                        model=active_model, 
+                        model=final_model_to_use, 
                         contents=formatted_contents, 
                         config=types.GenerateContentConfig(system_instruction=system_instruction)
                     )
@@ -268,8 +298,6 @@ if st.session_state.current_page == "💬 AI Workspace":
             current_messages.append({"role": "assistant", "content": response.text})
             save_message(current_session_id, current_messages)
             st.rerun()
-        except Exception as e:
-            st.error(f"Terjadi kesalahan: {e}")
 
 # 7. HALAMAN 2: NOTEBOOK DASHBOARD
 elif st.session_state.current_page == "📓 Notebook Dashboard":
