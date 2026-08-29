@@ -295,11 +295,13 @@ if st.session_state.current_page == "💬 AI Workspace":
                     )
                     st.markdown(response.text)
             
+            # ... (kode current_messages.append dan st.rerun() sebelumnya) ...
             current_messages.append({"role": "assistant", "content": response.text})
             save_message(current_session_id, current_messages)
             st.rerun()
         except Exception as e:
             st.error(f"Terjadi kesalahan: {e}")
+
 # 7. HALAMAN 2: NOTEBOOK DASHBOARD
 elif st.session_state.current_page == "📓 Notebook Dashboard":
     st.title("📓 Notebook Dashboard")
