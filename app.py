@@ -300,11 +300,14 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
     try:
         client = genai.Client(api_key=api_key)
         
-        # Susun riwayat percakapan untuk Context Engine (kecuali pesan terakhir)
+        # PERBAIKAN: Format dictionary disesuaikan untuk SDK google-genai terbaru
         formatted_contents = []
         for msg in current_messages[:-1]:
             role = "user" if msg["role"] == "user" else "model"
-            formatted_contents.append({"role": role, "parts": [msg["content"]]})
+            formatted_contents.append({
+                "role": role, 
+                "parts": [{"text": msg["content"]}] # Penambahan key "text"
+            })
         
         # Siapkan teks untuk pesan terakhir (gabung dengan dokumen jika ada)
         context = ""
@@ -312,13 +315,16 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
             context = f"\n\n--- KONTEKS DOKUMEN ---\n{get_document_text(uploaded_file)}\n\nBerdasarkan dokumen di atas:\n"
         
         final_prompt_text = context + prompt
-        formatted_contents.append({"role": "user", "parts": [final_prompt_text]})
+        formatted_contents.append({
+            "role": "user", 
+            "parts": [{"text": final_prompt_text}]
+        })
 
         with st.chat_message("assistant"):
-            with st.spinner("DIMA-X sedang mengetik..."):
+            with st.spinner("DIMA-X sedang memproses..."):
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash', # Gunakan standar flash terbaru
-                    contents=formatted_contents, # Memasukkan seluruh memori chat
+                    model='gemini-1.5-flash', 
+                    contents=formatted_contents, 
                     config=types.GenerateContentConfig(system_instruction=system_instruction)
                 )
                 st.markdown(response.text)
