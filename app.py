@@ -160,7 +160,7 @@ current_messages = current_data.get("messages", [])
 
 # 4. Sidebar 
 with st.sidebar:
-    # Branding Sidebar (Emoji asli + Gradasi Teks Putih/Navy)
+    # Branding Sidebar
     st.markdown('<div class="brand-sidebar"><span class="rocket-icon">🚀</span> <span class="brand-text">DIMA-X</span></div>', unsafe_allow_html=True)
     
     if st.button("➕ Obrolan Baru", use_container_width=True):
@@ -194,14 +194,23 @@ with st.sidebar:
     st.caption("WORKSPACE & SETTINGS")
     mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
 
-# 5. Logika Memori 
-base_memory = "Kamu adalah DIMA-X, asisten AI pribadi cerdas. Jawab dengan gaya natural, bersahabat, profesional, dan langsung ke inti. Jangan menyebut nama spesifik pengguna kecuali pengguna memperkenalkan dirinya."
+# 5. Logika Memori (Fase 2: Context Engine & System Analyst Mindset)
+base_memory = """Kamu adalah DIMA-X, Personal AI Thinking Partner dan Asisten Pribadi khusus untuk Dimas. Dimas adalah mahasiswa Sistem Informasi dan staf administrasi di Disbudporapar Kabupaten Landak.
+
+Prinsip Utama (System Analyst Mindset):
+1. "Think deeply, but don't overbuild." 
+2. Evaluasi setiap permintaan. Jika requirement sederhana, berikan solusi yang paling efisien, ringkas, dan to-the-point.
+3. Dilarang keras over-engineering. Jangan sarankan arsitektur kompleks, microservices, atau framework berat kecuali Dimas memintanya untuk skala produksi.
+4. Berani bilang "tidak perlu" jika sebuah teknologi berlebihan untuk kebutuhan saat ini.
+5. Untuk analisis dokumen/data, wajib merujuk pada teks asli (no hallucination).
+6. Jawab dengan gaya natural, bersahabat, profesional, dan langsung ke inti."""
+
 if "STUDY-X" in mode_dima:
-    system_instruction = f"Mode STUDY-X. {base_memory} Fokus membantu pembelajaran dan merangkum modul edukasi."
+    system_instruction = f"Mode STUDY-X.\n\n{base_memory}\n\nFokus membantu pembelajaran, menyusun alur belajar, dan merangkum modul edukasi Sistem Informasi."
 elif "WORK-X" in mode_dima:
-    system_instruction = f"Mode WORK-X. {base_memory} Fokus menyusun laporan, administrasi, dan surat resmi."
+    system_instruction = f"Mode WORK-X.\n\n{base_memory}\n\nFokus menyusun laporan, administrasi dinas, dan surat resmi."
 elif "WRITE-X" in mode_dima:
-    system_instruction = f"Mode WRITE-X. {base_memory} Fokus pada perbaikan tata bahasa dan struktur penulisan."
+    system_instruction = f"Mode WRITE-X.\n\n{base_memory}\n\nFokus pada perbaikan tata bahasa, penyesuaian gaya penulisan (formal/akademik/kasual), dan struktur dokumen."
 else:
     system_instruction = base_memory
 
@@ -255,7 +264,7 @@ for idx, message in enumerate(current_messages):
                 st.download_button("📄 Export", data=message["content"], file_name=f"DIMAX_Response_{idx}.txt", key=f"ex_{idx}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# 8. Menu Ekstra (Titik 3 di Kiri, Plus di Kanan) - Tepat di atas Chat Input
+# 8. Menu Ekstra
 st.markdown("<br>", unsafe_allow_html=True)
 menu_col1, menu_col2, menu_col3 = st.columns([1, 8, 1])
 
@@ -275,12 +284,13 @@ with menu_col3:
         if st.button("📓 Notebooks", use_container_width=True):
             st.toast("Akses Notebook terbuka.", icon="📓")
 
-# 9. Input AI Utama
+# 9. Input AI Utama & Eksekusi Context Engine
 if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
     new_title = current_data["title"]
     if len(current_messages) == 0:
         new_title = prompt[:25] + "..." if len(prompt) > 25 else prompt
 
+    # Simpan pesan user ke list
     current_messages.append({"role": "user", "content": prompt})
     save_message(current_session_id, current_messages, title=new_title)
     
@@ -289,17 +299,26 @@ if prompt := st.chat_input("Tanyakan apa saja kepada DIMA-X..."):
 
     try:
         client = genai.Client(api_key=api_key)
+        
+        # Susun riwayat percakapan untuk Context Engine (kecuali pesan terakhir)
+        formatted_contents = []
+        for msg in current_messages[:-1]:
+            role = "user" if msg["role"] == "user" else "model"
+            formatted_contents.append({"role": role, "parts": [msg["content"]]})
+        
+        # Siapkan teks untuk pesan terakhir (gabung dengan dokumen jika ada)
         context = ""
         if uploaded_file:
             context = f"\n\n--- KONTEKS DOKUMEN ---\n{get_document_text(uploaded_file)}\n\nBerdasarkan dokumen di atas:\n"
-
-        final_prompt = context + prompt
+        
+        final_prompt_text = context + prompt
+        formatted_contents.append({"role": "user", "parts": [final_prompt_text]})
 
         with st.chat_message("assistant"):
             with st.spinner("DIMA-X sedang mengetik..."):
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash', 
-                    contents=final_prompt,
+                    model='gemini-1.5-flash', # Gunakan standar flash terbaru
+                    contents=formatted_contents, # Memasukkan seluruh memori chat
                     config=types.GenerateContentConfig(system_instruction=system_instruction)
                 )
                 st.markdown(response.text)
