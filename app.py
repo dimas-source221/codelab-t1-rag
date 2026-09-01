@@ -192,11 +192,11 @@ with st.sidebar:
             model_version = st.selectbox("Versi Engine", ["🚀 DIMX 3.6 pro", "⚡ DIMX 3.5 plus-lite", "🧠 DIMX 3.1 pro-max"])
 
             if "3.5" in model_version:
-        active_model = 'gemini-2.0-flash'
-    elif "3.6" in model_version:
-        active_model = 'gemini-2.0-flash'
-    else:
-        active_model = 'gemini-2.0-flash'
+                active_model = 'gemini-2.0-flash'
+            elif "3.6" in model_version:
+                active_model = 'gemini-2.0-flash'
+            else:
+                active_model = 'gemini-2.0-flash' # Model resmi aktif
 
             mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     else:
