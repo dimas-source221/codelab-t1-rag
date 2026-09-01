@@ -192,18 +192,18 @@ with st.sidebar:
             model_version = st.selectbox("Versi Engine", ["🚀 DIMX 3.6 pro", "⚡ DIMX 3.5 plus-lite", "🧠 DIMX 3.1 pro-max"])
 
             if "3.5" in model_version:
-                active_model = 'gemini-2.0-flash'
+                active_model = 'gemini-3.6-flash'
             elif "3.6" in model_version:
-                active_model = 'gemini-2.0-flash'
+                active_model = 'gemini-3.6-flash'
             else:
-                active_model = 'gemini-2.0-flash' # Model resmi aktif
+                active_model = 'gemini-3.6-flash' # Model resmi aktif
 
             mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     else:
         # Demo mode aktif: tetap sediakan default aman agar variabel di bawah tidak undefined
         nav_selection = st.session_state.current_page
         model_version = "🚀 DIMX 3.6 pro"
-        active_model = 'gemini-2.0-flash'
+        active_model = 'gemini-3.6-flash'
         mode_dima = "🤖 AI Chat"
         st.caption("Mode Demo aktif — menu disembunyikan.")
 
@@ -238,12 +238,12 @@ else:
 def route_model(prompt_text, selected_model):
     # 1. Deteksi sapaan atau pesan sangat pendek (Jalur Cepat)
     if len(prompt_text) < 15 or prompt_text.lower().strip() in ["halo", "hi", "halo dimax", "test", "tes"]:
-        return "gemini-2.0-flash"
+        return "gemini-3.6-flash"
 
     # 2. Logika Smart Router untuk tugas berat
     heavy_keywords = ["analisis", "riset", "bug", "error", "kode", "program", "evaluasi", "kompleks", "strategi", "sistem"]
     if any(word in prompt_text.lower() for word in heavy_keywords):
-        return 'gemini-2.0-flash' # Lempar ke mesin terkuat yang valid
+        return 'gemini-3.6-flash' # Lempar ke mesin terkuat yang valid
 
     return selected_model
 
@@ -483,7 +483,7 @@ if st.session_state.current_page == "💬 AI Workspace":
                 formatted_contents.append({"role": "user", "parts": parts_payload})
 
                 final_model_to_use = route_model(prompt_text, active_model)
-                model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-2.0-flash' else "🧠 Mode Analisis Dalam"
+                model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-3.6-flash' else "🧠 Mode Analisis Dalam"
 
                 with st.chat_message("assistant"):
                     with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
