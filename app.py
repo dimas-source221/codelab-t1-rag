@@ -238,12 +238,12 @@ else:
 def route_model(prompt_text, selected_model):
     # 1. Deteksi sapaan atau pesan sangat pendek (Jalur Cepat)
     if len(prompt_text) < 15 or prompt_text.lower().strip() in ["halo", "hi", "halo dimax", "test", "tes"]:
-        return "gemini-1.5-flash"
+        return "gemini-2.0-flash"
 
     # 2. Logika Smart Router untuk tugas berat
     heavy_keywords = ["analisis", "riset", "bug", "error", "kode", "program", "evaluasi", "kompleks", "strategi", "sistem"]
     if any(word in prompt_text.lower() for word in heavy_keywords):
-        return 'gemini-3.6-flash' # Lempar ke mesin terkuat yang valid
+        return 'gemini-2.0-flash' # Lempar ke mesin terkuat yang valid
 
     return selected_model
 
@@ -483,7 +483,7 @@ if st.session_state.current_page == "💬 AI Workspace":
                 formatted_contents.append({"role": "user", "parts": parts_payload})
 
                 final_model_to_use = route_model(prompt_text, active_model)
-                model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-3.6-flash' else "🧠 Mode Analisis Dalam"
+                model_badge = "⚡ Mode Hemat" if final_model_to_use != 'gemini-2.0-flash' else "🧠 Mode Analisis Dalam"
 
                 with st.chat_message("assistant"):
                     with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
