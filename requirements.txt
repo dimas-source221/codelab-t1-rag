@@ -2,3 +2,4 @@ streamlit
 google-genai
 PyPDF2
 firebase-admin
+reportlab
