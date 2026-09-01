@@ -253,25 +253,33 @@ def route_model(prompt_text, selected_model):
     return selected_model
 
 def generate_with_fallback(client, primary_model, contents, config):
+    # 1. Coba model utama pilihan pengguna
     try:
-        # Coba model utama pilihanmu dulu
         return client.models.generate_content(model=primary_model, contents=contents, config=config), primary_model
     except Exception as e:
-        # Kalau errornya BUKAN 404, tampilkan error aslinya
         if "404" not in str(e) and "NOT_FOUND" not in str(e).upper():
             raise e
 
-        # JIKA 404: Paksa sistem men-scan model yang aktif di akunmu detik ini juga
-        for m in client.models.list():
-            if hasattr(m, 'supported_generation_methods') and "generateContent" in m.supported_generation_methods:
-                try:
-                    # Langsung hajar pakai model pertama yang terdeteksi valid dan aktif
-                    response = client.models.generate_content(model=m.name, contents=contents, config=config)
-                    return response, m.name
-                except:
-                    continue # Kalau model ini gagal juga, lanjut coba model berikutnya
+    # 2. Daftar model standar yang umum aktif
+    static_fallbacks = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite"]
+    for model_id in static_fallbacks:
+        try:
+            return client.models.generate_content(model=model_id, contents=contents, config=config), model_id
+        except Exception:
+            continue
 
-        raise Exception("API Key valid, tapi tidak ada satupun model AI yang terbuka untuk akun ini.")
+    # 3. Scan dinamis tanpa filter atribut kaku jika langkah 2 masih gagal
+    try:
+        for m in client.models.list():
+            try:
+                # Coba langsung panggil model berdasarkan nama resminya
+                return client.models.generate_content(model=m.name, contents=contents, config=config), m.name
+            except Exception:
+                continue
+    except Exception as list_err:
+        raise list_err
+
+    raise Exception("API Key valid, tetapi tidak ada model yang dapat merespons permintaan.")
 
 
 # Helper: hasilkan pertanyaan lanjutan (follow-up) sederhana berbasis heuristik ringan
