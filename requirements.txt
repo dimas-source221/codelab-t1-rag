@@ -3,3 +3,5 @@ google-genai
 PyPDF2
 firebase-admin
 reportlab
+pyrebase4
+requests
