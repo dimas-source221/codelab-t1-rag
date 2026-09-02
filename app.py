@@ -61,7 +61,7 @@ if not st.session_state['user']:
                 st.success("Autentikasi Email berhasil! Memuat DIMA-X...")
                 st.rerun()
             except Exception as e:
-                st.error("Login gagal. Periksa kembali Email dan Password Anda.")
+            st.error(f"Pesan Error Firebase: {e}")
 
     with tab_google:
         st.write("Masuk lebih cepat menggunakan akun Google Anda.")
