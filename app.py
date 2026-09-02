@@ -25,9 +25,9 @@ if not api_key:
 # KODE 2 — Firebase Auth
 # ==========================================================
 import pyrebase
-# Konfigurasi ini diambil dari Firebase Console
+# Konfigurasi ini diambil dari Firebase Console yang baru diperbarui
 firebaseConfig = {
-    "apiKey": "AIzaSyALiqz4U1PkQ0n24n_5zKjzAT2gm2yFWlo",
+    "apiKey": "AIzaSyALIqz4U1PkQ0n24n_5zKjzAT2gm2yFWlo",
     "authDomain": "dimax-db.firebaseapp.com",
     "projectId": "dimax-db",
     "storageBucket": "dimax-db.firebasestorage.app",
