@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -10,6 +11,52 @@ import io
 import time
 import firebase_admin
 from firebase_admin import credentials, firestore
+
+# ==========================================================
+# KODE 1 — Persiapan Secret Manager
+# ==========================================================
+# Prioritaskan Environment Variable (Cloud Run), lalu fallback ke Streamlit Secrets
+api_key = os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+if not api_key:
+    st.error("API Key Gemini tidak ditemukan! Pastikan Secret Manager / st.secrets sudah dikonfigurasi.")
+    st.stop()
+
+# ==========================================================
+# KODE 2 — Firebase Auth
+# ==========================================================
+import pyrebase
+# Konfigurasi ini diambil dari Firebase Console
+firebaseConfig = {
+    "apiKey": "AIzaSyALiqz4U1PkQ0n24n_5zKjzAT2gm2yFWlo",
+    "authDomain": "dimax-db.firebaseapp.com",
+    "projectId": "dimax-db",
+    "storageBucket": "dimax-db.firebasestorage.app",
+    "messagingSenderId": "273026180290",
+    "appId": "1:273026180290:web:edee67eed08d4c2b0e075b",
+    "databaseURL": ""
+}
+firebase = pyrebase.initialize_app(firebaseConfig)
+auth = firebase.auth()
+if 'user' not in st.session_state:
+    st.session_state['user'] = None
+if not st.session_state['user']:
+    st.title("🔐 Akses Terbatas: DIMA-X")
+    st.write("Silakan login menggunakan kredensial Firebase Anda.")
+
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        try:
+            user = auth.sign_in_with_email_and_password(email, password)
+            st.session_state['user'] = user
+            st.success("Autentikasi berhasil! Memuat DIMA-X...")
+            st.rerun()
+        except Exception as e:
+            st.error("Login gagal. Periksa kembali Email dan Password Anda.")
+
+    st.stop()
+st.sidebar.write(f"👤 User: {st.session_state['user']['email']}")
 
 # 1. Konfigurasi Halaman & Routing
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
@@ -73,8 +120,6 @@ st.markdown("""
     .followup-btn button:hover { border-color: #4A90E2 !important; background-color: #1e1e1e !important; }
     </style>
 """, unsafe_allow_html=True)
-
-api_key = st.secrets["GEMINI_API_KEY"]
 
 # 3. Inisialisasi Firebase & Koleksi
 if not firebase_admin._apps:
