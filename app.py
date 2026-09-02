@@ -15,17 +15,16 @@ from firebase_admin import credentials, firestore
 # ==========================================================
 # KODE 1 — Persiapan Secret Manager
 # ==========================================================
-# Prioritaskan Environment Variable (Cloud Run), lalu fallback ke Streamlit Secrets
 api_key = os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     st.error("API Key Gemini tidak ditemukan! Pastikan Secret Manager / st.secrets sudah dikonfigurasi.")
     st.stop()
 
 # ==========================================================
-# KODE 2 — Firebase Auth
+# KODE 2 — Firebase Auth (Login & Register)
 # ==========================================================
 import pyrebase
-# Konfigurasi ini diambil dari Firebase Console yang baru diperbarui
+
 firebaseConfig = {
     "apiKey": "AIzaSyALIqz4U1PkQ0n24n_5zKjzAT2gm2yFWlo",
     "authDomain": "dimax-db.firebaseapp.com",
@@ -43,29 +42,57 @@ if 'user' not in st.session_state:
 
 if not st.session_state['user']:
     st.title("🔐 Akses Terbatas: DIMA-X")
-    st.write("Silakan login menggunakan kredensial Firebase Anda.")
+    st.write("Silakan masuk atau buat akun baru untuk mengakses AI Workspace.")
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+    # Membuat Tab Login dan Tab Daftar Akun
+    tab_login, tab_register = st.tabs(["🔑 Login", "📝 Buat Akun Baru"])
 
-    if st.button("Login via Email", use_container_width=True):
-        try:
-            user = auth.sign_in_with_email_and_password(email, password)
-            st.session_state['user'] = user
-            st.success("Autentikasi Email berhasil! Memuat DIMA-X...")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Pesan Error Firebase: {e}")
+    with tab_login:
+        email_login = st.text_input("Email", key="login_email")
+        password_login = st.text_input("Password", type="password", key="login_pass")
+
+        if st.button("Masuk", use_container_width=True):
+            try:
+                user = auth.sign_in_with_email_and_password(email_login, password_login)
+                st.session_state['user'] = user
+                st.success("Autentikasi berhasil! Memuat DIMA-X...")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Gagal Login: Periksa email/password atau pastikan akun sudah terdaftar.")
+
+    with tab_register:
+        email_reg = st.text_input("Email Baru", key="reg_email")
+        password_reg = st.text_input("Password (Min. 6 Karakter)", type="password", key="reg_pass")
+        password_confirm = st.text_input("Konfirmasi Password", type="password", key="reg_pass_conf")
+
+        if st.button("Daftar Sekarang", use_container_width=True):
+            if not email_reg or not password_reg:
+                st.warning("Mohon isi Email dan Password!")
+            elif password_reg != password_confirm:
+                st.error("Konfirmasi Password tidak cocok!")
+            elif len(password_reg) < 6:
+                st.error("Password minimal 6 karakter!")
+            else:
+                try:
+                    # Buat akun baru di Firebase
+                    auth.create_user_with_email_and_password(email_reg, password_reg)
+                    st.success("🎉 Akun berhasil dibuat! Silakan pindah ke tab 'Login' untuk masuk.")
+                except Exception as e:
+                    st.error(f"Gagal mendaftar: Email mungkin sudah terdaftar atau format salah.")
 
     st.stop()
 
 st.sidebar.write(f"👤 User: {st.session_state['user']['email']}")
 
+# Tombol Logout di Sidebar
+if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
+    st.session_state['user'] = None
+    st.rerun()
+
 # ==========================================================
-# SISA KODE APLIKASI DIMA-X UTAMA (TIDAK ADA YANG DIUBAH)
+# SISA KODE APLIKASI DIMA-X UTAMA
 # ==========================================================
 
-# 1. Konfigurasi Halaman & Routing
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
 
 if "current_page" not in st.session_state:
@@ -77,7 +104,6 @@ if "demo_mode" not in st.session_state:
 if "last_latency" not in st.session_state:
     st.session_state.last_latency = None
 
-# 2. Desain CSS Custom
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Roboto:wght@400;500&display=swap');
@@ -91,44 +117,9 @@ st.markdown("""
     .rocket-icon { -webkit-text-fill-color: initial; }
     .stButton>button { border-radius: 8px; border: 1px solid #333; background-color: #1e1e1e; color: white; transition: all 0.2s; text-align: left; }
     .stButton>button:hover { background-color: #333; border-color: #4A90E2; }
-
-    /* ==== Input Kapsul (rounded-full) ==== */
-    .stChatInput div[data-baseweb="input"],
-    .stChatInput div[data-baseweb="textarea"] {
-        border-radius: 999px !important;
-    }
-    .stChatInput div[data-baseweb="input"] > div,
-    .stChatInput div[data-baseweb="textarea"] > div {
-        border-radius: 999px !important;
-    }
-    .stChatInput textarea, .stChatInput input {
-        border-radius: 999px !important;
-        padding-left: 18px !important;
-    }
-    .stChatInput div[data-baseweb="input"]:focus-within,
-    .stChatInput div[data-baseweb="textarea"] > div:focus-within { border-color: #1e3a8a !important; box-shadow: 0 0 10px 1px rgba(30, 58, 138, 0.7) !important; }
-
-    [data-testid="stPopover"] button { border: 1px solid #333; background-color: #141414; color: #a3a3a3; border-radius: 8px; }
-    [data-testid="stPopover"] button:hover { color: #ffffff; border-color: #4A90E2; }
-    .stChatMessage [data-testid="stHorizontalBlock"] button { background-color: transparent !important; border: 1px solid transparent !important; color: #a3a3a3 !important; font-size: 13px !important; padding: 2px 8px !important; border-radius: 6px !important; box-shadow: none !important; display: flex; align-items: center; gap: 4px; }
-    .stChatMessage [data-testid="stHorizontalBlock"] button:hover { background-color: rgba(255, 255, 255, 0.08) !important; color: #ffffff !important; }
-    .notebook-card { background-color: #1e1e1e; border: 1px solid #333; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
-    .notebook-title { color: #4A90E2; font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; }
-    .notebook-date { color: #888; font-size: 0.8rem; margin-bottom: 10px; }
-
-    /* ==== Header status badge ==== */
-    .status-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #22c55e; box-shadow: 0 0 8px #22c55e; display: inline-block; animation: pulse-dot 2s infinite; }
-    @keyframes pulse-dot { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-    .status-badge { font-size: 0.8rem; color: #a3a3a3; background-color: #141414; border: 1px solid #2a2a2a; padding: 4px 12px; border-radius: 999px; }
-
-    /* ==== Follow-up suggestion buttons ==== */
-    .followup-btn button { border-radius: 999px !important; background-color: #141414 !important; border: 1px solid #333 !important; font-size: 0.85rem !important; color: #87CEEB !important; }
-    .followup-btn button:hover { border-color: #4A90E2 !important; background-color: #1e1e1e !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Inisialisasi Firebase & Koleksi
 if not firebase_admin._apps:
     firebase_secrets = st.secrets["firebase"]["firebase_json"]
     cred_dict = json.loads(firebase_secrets)
@@ -139,7 +130,7 @@ db = firestore.client()
 collection_name = "dimax_history"
 notebook_collection = "dimax_notebooks"
 memory_collection = "dimax_long_term_memory"
-cache_collection = "dimax_response_cache" # Fitur Caching & Estimasi Token
+cache_collection = "dimax_response_cache"
 
 def get_long_term_memory():
     doc_ref = db.collection(memory_collection).document("core_identity")
@@ -184,11 +175,8 @@ current_session_id = st.session_state.current_session_id
 current_data = chat_sessions.get(current_session_id, {"messages": [], "title": "Obrolan Baru"})
 current_messages = current_data.get("messages", [])
 
-# 4. Sidebar Navigasi Utama
 with st.sidebar:
     st.markdown('<div class="brand-sidebar"><span class="rocket-icon">🚀</span> <span class="brand-text">DIMA-X</span></div>', unsafe_allow_html=True)
-
-    # Demo Mode Toggle: menyembunyikan/menampilkan menu samping (sisa isi sidebar)
     st.session_state.demo_mode = st.toggle("🎬 Demo Mode (sembunyikan menu)", value=st.session_state.demo_mode)
 
     if not st.session_state.demo_mode:
@@ -240,30 +228,27 @@ with st.sidebar:
             st.divider()
             st.caption("WORKSPACE & SETTINGS")
 
-            # FINALISASI MAPPING API GOOGLE — default ke mode cepat/lite, bukan analisis dalam
             model_version = st.selectbox(
                 "Versi Engine",
                 ["⚡ DIMX 3.5 plus-lite", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"],
-                index=0  # default: lite/cepat, bukan mode analisis dalam
+                index=0
             )
 
             if "3.5" in model_version:
-                active_model = 'gemini-2.0-flash'      # Mode cepat/lite (default)
+                active_model = 'gemini-2.0-flash'
             elif "3.6" in model_version:
-                active_model = 'gemini-2.0-flash'      # Mode pro (dipilih manual oleh user)
+                active_model = 'gemini-2.0-flash'
             else:
-                active_model = 'gemini-2.0-flash'      # Mode analisis dalam (dipilih manual oleh user)
+                active_model = 'gemini-2.0-flash'
 
             mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     else:
-        # Demo mode aktif: tetap sediakan default aman agar variabel di bawah tidak undefined
         nav_selection = st.session_state.current_page
         model_version = "⚡ DIMX 3.5 plus-lite"
         active_model = 'gemini-2.0-flash'
         mode_dima = "🤖 AI Chat"
         st.caption("Mode Demo aktif — menu disembunyikan.")
 
-# 5. Logika Memori Level 3 (Final Refined Edition)
 long_term_context = get_long_term_memory()
 
 base_memory = f"""Kamu adalah DIMA-X, Personal AI Thinking Partner & System Analyst.
@@ -295,10 +280,8 @@ elif "WRITE-X" in mode_dima if 'mode_dima' in locals() else False:
 else:
     system_instruction = base_memory
 
-# DAFTAR MODEL FALLBACK — dipakai otomatis jika model utama gagal (404 / NOT_FOUND)
 FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash']
 
-# LOGIKA SMART ROUTER
 def route_model(prompt_text, selected_model):
     if len(prompt_text) < 15 or prompt_text.lower().strip() in ["halo", "hi", "halo dimax", "test", "tes"]:
         return "gemini-2.0-flash"
@@ -329,7 +312,6 @@ def generate_with_fallback(client, primary_model, contents, config):
 
     raise Exception("API Key valid, tetapi tidak ada model yang dapat merespons permintaan.")
 
-# Helper: hasilkan pertanyaan lanjutan (follow-up) sederhana berbasis heuristik ringan
 def generate_followups(user_prompt, ai_response):
     followups = []
     text_lower = (user_prompt + " " + ai_response).lower()
@@ -341,7 +323,6 @@ def generate_followups(user_prompt, ai_response):
         followups = ["Jelaskan lebih lanjut", "Berikan contoh konkret", "Ringkas dalam 3 poin"]
     return followups[:3]
 
-# Helper: build laporan PDF sederhana dari riwayat chat
 def build_chat_pdf(messages, title="DIMA-X Intelligence Report"):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -372,7 +353,6 @@ def build_chat_pdf(messages, title="DIMA-X Intelligence Report"):
     buffer.seek(0)
     return buffer
 
-# 6. HALAMAN 1: AI WORKSPACE
 if st.session_state.current_page == "💬 AI Workspace":
 
     latency_text = f"~{st.session_state.last_latency:.1f}s respons terakhir" if st.session_state.last_latency else "menunggu permintaan pertama"
@@ -580,7 +560,6 @@ if st.session_state.current_page == "💬 AI Workspace":
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {e}")
 
-# 7. HALAMAN 2: NOTEBOOK DASHBOARD
 elif st.session_state.current_page == "📓 Notebook Dashboard":
     st.title("📓 Notebook Dashboard")
     st.markdown("Kumpulan catatan, ringkasan, dan draf penting yang sudah kamu simpan dari obrolan DIMA-X.")
@@ -603,7 +582,6 @@ elif st.session_state.current_page == "📓 Notebook Dashboard":
     if not has_notes:
         st.info("Belum ada catatan. Gunakan fitur 'Add to Notebook' dari menu titik tiga di obrolan untuk menyimpan teks penting ke sini.")
 
-# 8. HALAMAN 3: GOOGLE DRIVE INTEGRATION
 elif st.session_state.current_page == "☁️ Drive Integration":
     st.title("☁️ Google Drive Workspace")
     st.markdown("Integrasikan dokumen dari Google Drive langsung ke otak DIMA-X.")
