@@ -22,7 +22,7 @@ if not api_key:
     st.stop()
 
 # ==========================================================
-# KODE 2 — Firebase Auth (Email/Password & Google Sign-In)
+# KODE 2 — Firebase Auth
 # ==========================================================
 import pyrebase
 # Konfigurasi ini diambil dari Firebase Console
@@ -41,37 +41,25 @@ auth = firebase.auth()
 if 'user' not in st.session_state:
     st.session_state['user'] = None
 
-# Tampilan Halaman Login (Jika belum login)
 if not st.session_state['user']:
     st.title("🔐 Akses Terbatas: DIMA-X")
-    st.write("Silakan login untuk mengakses AI Workspace.")
+    st.write("Silakan login menggunakan kredensial Firebase Anda.")
 
-    # Membuat Tab untuk memisahkan Email/Password dan Google Sign-In
-    tab_email, tab_google = st.tabs(["📧 Email & Password", "🌐 Google Sign-In"])
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
-    with tab_email:
-        st.write("Masuk menggunakan kredensial Firebase Anda (Sesuai Persyaratan).")
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-
-        if st.button("Login via Email", use_container_width=True):
-            try:
-                user = auth.sign_in_with_email_and_password(email, password)
-                st.session_state['user'] = user
-                st.success("Autentikasi Email berhasil! Memuat DIMA-X...")
-                st.rerun()
-            except Exception as e:
+    if st.button("Login via Email", use_container_width=True):
+        try:
+            user = auth.sign_in_with_email_and_password(email, password)
+            st.session_state['user'] = user
+            st.success("Autentikasi Email berhasil! Memuat DIMA-X...")
+            st.rerun()
+        except Exception as e:
             st.error(f"Pesan Error Firebase: {e}")
-
-    with tab_google:
-        st.write("Masuk lebih cepat menggunakan akun Google Anda.")
-        if st.button("🌐 Lanjutkan dengan Google", use_container_width=True):
-            # Placeholder untuk integrasi OAuth di Streamlit
-            st.info("💡 Mode UI Aktif: Untuk memfungsikan tombol Google Sign-In ini sepenuhnya, kita perlu mengatur layar persetujuan (OAuth Consent Screen) di Google Cloud Console pada tahap selanjutnya.")
 
     st.stop()
 
-st.sidebar.write(f"👤 User: {st.session_state['user'].get('email', 'Pengguna Google')}")
+st.sidebar.write(f"👤 User: {st.session_state['user']['email']}")
 
 # ==========================================================
 # SISA KODE APLIKASI DIMA-X UTAMA (TIDAK ADA YANG DIUBAH)
@@ -312,22 +300,17 @@ FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash']
 
 # LOGIKA SMART ROUTER
 def route_model(prompt_text, selected_model):
-    # 1. Deteksi sapaan atau pesan sangat pendek (Jalur Cepat) -> selalu pakai model lite
     if len(prompt_text) < 15 or prompt_text.lower().strip() in ["halo", "hi", "halo dimax", "test", "tes"]:
         return "gemini-2.0-flash"
-
-    # 2. Untuk pertanyaan standar lainnya: HORMATI pilihan engine milik user.
     return selected_model
 
 def generate_with_fallback(client, primary_model, contents, config):
-    # 1. Coba model utama pilihan pengguna
     try:
         return client.models.generate_content(model=primary_model, contents=contents, config=config), primary_model
     except Exception as e:
         if "404" not in str(e) and "NOT_FOUND" not in str(e).upper():
             raise e
 
-    # 2. Daftar model standar yang umum aktif
     static_fallbacks = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite"]
     for model_id in static_fallbacks:
         try:
@@ -335,11 +318,9 @@ def generate_with_fallback(client, primary_model, contents, config):
         except Exception:
             continue
 
-    # 3. Scan dinamis tanpa filter atribut kaku jika langkah 2 masih gagal
     try:
         for m in client.models.list():
             try:
-                # Coba langsung panggil model berdasarkan nama resminya
                 return client.models.generate_content(model=m.name, contents=contents, config=config), m.name
             except Exception:
                 continue
@@ -347,7 +328,6 @@ def generate_with_fallback(client, primary_model, contents, config):
         raise list_err
 
     raise Exception("API Key valid, tetapi tidak ada model yang dapat merespons permintaan.")
-
 
 # Helper: hasilkan pertanyaan lanjutan (follow-up) sederhana berbasis heuristik ringan
 def generate_followups(user_prompt, ai_response):
@@ -361,7 +341,7 @@ def generate_followups(user_prompt, ai_response):
         followups = ["Jelaskan lebih lanjut", "Berikan contoh konkret", "Ringkas dalam 3 poin"]
     return followups[:3]
 
-# Helper: build laporan PDF sederhana dari riwayat chat (tanpa mengubah alur data chat)
+# Helper: build laporan PDF sederhana dari riwayat chat
 def build_chat_pdf(messages, title="DIMA-X Intelligence Report"):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -395,7 +375,6 @@ def build_chat_pdf(messages, title="DIMA-X Intelligence Report"):
 # 6. HALAMAN 1: AI WORKSPACE
 if st.session_state.current_page == "💬 AI Workspace":
 
-    # Header status: badge online + estimasi latensi
     latency_text = f"~{st.session_state.last_latency:.1f}s respons terakhir" if st.session_state.last_latency else "menunggu permintaan pertama"
     st.markdown(f"""
         <div class="status-header">
@@ -409,7 +388,6 @@ if st.session_state.current_page == "💬 AI Workspace":
         st.markdown("<br><br><br><div class='brand-main'><span class='rocket-icon'>🚀</span> <span class='brand-text'>DIMA-X</span></div>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #9ca3af;'>Halo! Apa yang bisa saya bantu hari ini?</p><br>", unsafe_allow_html=True)
 
-    # Export/Cetak Laporan PDF
     if len(current_messages) > 0:
         exp_col1, exp_col2 = st.columns([1, 5])
         with exp_col1:
@@ -429,7 +407,6 @@ if st.session_state.current_page == "💬 AI Workspace":
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-            # Copy Code: tombol salin untuk tiap blok kode terdeteksi dalam respons assistant
             if message["role"] == "assistant" and "```" in message["content"]:
                 code_blocks = message["content"].split("```")[1::2]
                 for c_idx, block in enumerate(code_blocks):
@@ -462,7 +439,6 @@ if st.session_state.current_page == "💬 AI Workspace":
                         if len(current_messages) > 0: st.session_state.force_run = current_messages[-1]["content"]
                         st.rerun()
 
-    # Smart Suggested Follow-Ups: tampilkan di bawah respons AI terakhir
     if len(current_messages) > 0 and current_messages[-1]["role"] == "assistant":
         last_user_msg = ""
         for m in reversed(current_messages[:-1]):
@@ -481,28 +457,24 @@ if st.session_state.current_page == "💬 AI Workspace":
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Inisialisasi variabel kosong agar tidak error di bawah
     uploaded_file = None
     camera_photo = None
     audio_file = None
 
-    # Menu Ekstra + Kamera + File Uploader + Mic
     menu_col1, menu_col2, menu_col3 = st.columns([1, 8, 1])
     with menu_col1:
         with st.popover("⋮"):
             st.button("🧹 Bersihkan Konteks", use_container_width=True)
     with menu_col3:
         with st.popover("➕"):
-            # Membuat menu pilihan seperti di Gemini
             input_mode = st.radio(
                 "Pilih Input:",
                 ["📁 Upload File", "📸 Kamera", "🎤 Pesan Suara"],
                 label_visibility="collapsed"
             )
 
-            st.divider() # Garis pemisah biar rapi
+            st.divider()
 
-            # Kamera atau Mic HANYA akan aktif jika dipilih
             if input_mode == "📁 Upload File":
                 uploaded_file = st.file_uploader("Format: PDF, TXT, PNG, JPG", type=['pdf', 'txt', 'png', 'jpg', 'jpeg'])
             elif input_mode == "📸 Kamera":
@@ -524,7 +496,6 @@ if st.session_state.current_page == "💬 AI Workspace":
     if "force_run" in st.session_state:
         prompt_text = st.session_state.force_run
         del st.session_state.force_run
-        # Jika follow-up/redo dipicu dan belum tercatat sebagai pesan user, catat dulu
         if len(current_messages) == 0 or current_messages[-1]["content"] != prompt_text or current_messages[-1]["role"] != "user":
             current_messages.append({"role": "user", "content": prompt_text})
             save_message(current_session_id, current_messages)
@@ -534,7 +505,6 @@ if st.session_state.current_page == "💬 AI Workspace":
         if not any(msg["content"] == prompt_text for msg in current_messages[-1:]):
             with st.chat_message("user"): st.markdown(prompt_text)
 
-        # Mekanisme Caching (Hemat Token)
         cached_response = check_cache(prompt_text) if not (uploaded_file or camera_photo or audio_file) else None
 
         if cached_response:
@@ -552,7 +522,6 @@ if st.session_state.current_page == "💬 AI Workspace":
 
                 parts_payload = [{"text": prompt_text}]
 
-                # Penanganan Multimedia terintegrasi (Perbaikan: format part gambar konsisten pakai bytes + mime_type)
                 def image_to_part(pil_img):
                     buf = io.BytesIO()
                     img_format = pil_img.format if pil_img.format else "PNG"
@@ -585,8 +554,6 @@ if st.session_state.current_page == "💬 AI Workspace":
                 formatted_contents.append({"role": "user", "parts": parts_payload})
 
                 final_model_to_use = route_model(prompt_text, active_model)
-                # Badge dihitung dari pilihan Versi Engine (bukan dari string model, karena
-                # saat ini semua tier memetakan ke model API yang sama).
                 model_badge = "🧠 Mode Analisis Dalam" if ("3.6" in model_version or "3.1" in model_version) and final_model_to_use == active_model else "⚡ Mode Hemat"
 
                 with st.chat_message("assistant"):
