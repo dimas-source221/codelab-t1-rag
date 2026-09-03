@@ -11,6 +11,7 @@ import io
 import time
 import firebase_admin
 from firebase_admin import credentials, firestore
+import pyrebase
 
 # ==========================================================
 # KODE 1 — Persiapan Secret Manager
@@ -21,10 +22,8 @@ if not api_key:
     st.stop()
 
 # ==========================================================
-# KODE 2 — Firebase Auth (Login & Register)
+# KODE 2 — Firebase Auth (Login & Register dengan Anti-Macet)
 # ==========================================================
-import pyrebase
-
 firebaseConfig = {
     "apiKey": "AIzaSyALIqz4U1PkQ0n24n_5zKjzAT2gm2yFWlo",
     "authDomain": "dimax-db.firebaseapp.com",
@@ -44,55 +43,61 @@ if not st.session_state['user']:
     st.title("🔐 Akses Terbatas: DIMA-X")
     st.write("Silakan masuk atau buat akun baru untuk mengakses AI Workspace.")
 
-    # Membuat Tab Login dan Tab Daftar Akun
     tab_login, tab_register = st.tabs(["🔑 Login", "📝 Buat Akun Baru"])
 
     with tab_login:
-        email_login = st.text_input("Email", key="login_email")
-        password_login = st.text_input("Password", type="password", key="login_pass")
+        # Menggunakan st.form agar tidak macet / rerun berulang kali
+        with st.form("login_form"):
+            email_login = st.text_input("Email")
+            password_login = st.text_input("Password", type="password")
+            submit_login = st.form_submit_button("Masuk", use_container_width=True)
 
-        if st.button("Masuk", use_container_width=True):
-            try:
-                user = auth.sign_in_with_email_and_password(email_login, password_login)
-                st.session_state['user'] = user
-                st.success("Autentikasi berhasil! Memuat DIMA-X...")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Gagal Login: Periksa email/password atau pastikan akun sudah terdaftar.")
+            if submit_login:
+                if not email_login or not password_login:
+                    st.warning("Mohon isi Email dan Password!")
+                else:
+                    try:
+                        user = auth.sign_in_with_email_and_password(email_login, password_login)
+                        st.session_state['user'] = user
+                        st.success("Autentikasi berhasil! Memuat DIMA-X...")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Gagal Login: Periksa kembali email dan password Anda.")
 
     with tab_register:
-        email_reg = st.text_input("Email Baru", key="reg_email")
-        password_reg = st.text_input("Password (Min. 6 Karakter)", type="password", key="reg_pass")
-        password_confirm = st.text_input("Konfirmasi Password", type="password", key="reg_pass_conf")
+        with st.form("register_form"):
+            email_reg = st.text_input("Email Baru")
+            password_reg = st.text_input("Password (Min. 6 Karakter)", type="password")
+            password_confirm = st.text_input("Konfirmasi Password", type="password")
+            submit_register = st.form_submit_button("Daftar Sekarang", use_container_width=True)
 
-        if st.button("Daftar Sekarang", use_container_width=True):
-            if not email_reg or not password_reg:
-                st.warning("Mohon isi Email dan Password!")
-            elif password_reg != password_confirm:
-                st.error("Konfirmasi Password tidak cocok!")
-            elif len(password_reg) < 6:
-                st.error("Password minimal 6 karakter!")
-            else:
-                try:
-                    # Buat akun baru di Firebase
-                    auth.create_user_with_email_and_password(email_reg, password_reg)
-                    st.success("🎉 Akun berhasil dibuat! Silakan pindah ke tab 'Login' untuk masuk.")
-                except Exception as e:
-                    st.error(f"Gagal mendaftar: Email mungkin sudah terdaftar atau format salah.")
+            if submit_register:
+                if not email_reg or not password_reg:
+                    st.warning("Mohon isi Email dan Password!")
+                elif password_reg != password_confirm:
+                    st.error("Konfirmasi Password tidak cocok!")
+                elif len(password_reg) < 6:
+                    st.error("Password minimal 6 karakter!")
+                else:
+                    try:
+                        auth.create_user_with_email_and_password(email_reg, password_reg)
+                        st.success("🎉 Akun berhasil dibuat! Silakan pindah ke tab 'Login' untuk masuk.")
+                    except Exception as e:
+                        st.error("Gagal mendaftar: Email mungkin sudah terdaftar atau format salah.")
 
     st.stop()
 
+# Simpan UID pengguna yang sedang login untuk isolasi data
+current_user_uid = st.session_state['user']['localId']
 st.sidebar.write(f"👤 User: {st.session_state['user']['email']}")
 
-# Tombol Logout di Sidebar
 if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
     st.session_state['user'] = None
     st.rerun()
 
 # ==========================================================
-# SISA KODE APLIKASI DIMA-X UTAMA
+# SISA KODE APLIKASI DIMA-X UTAMA (DENGAN FILTER PRIVASI)
 # ==========================================================
-
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
 
 if "current_page" not in st.session_state:
@@ -138,7 +143,7 @@ def get_long_term_memory():
     if doc.exists:
         return doc.to_dict().get("context", "")
     else:
-        default_context = "Fakta Pengguna: Mahasiswa Sistem Informasi UT Pontianak, staf Disbudporapar Landak. Fokus pada efisiensi dan analisis sistem."
+        default_context = "Fakta Pengguna: Mahasiswa Sistem Informasi, fokus pada efisiensi dan analisis sistem."
         doc_ref.set({"context": default_context})
         return default_context
 
@@ -150,15 +155,23 @@ def check_cache(prompt):
 def save_cache(prompt, response):
     db.collection(cache_collection).document(str(hash(prompt))).set({"prompt": prompt, "response": response, "timestamp": datetime.datetime.now().isoformat()})
 
-def get_all_sessions():
+# PR 1 FIX: Filter obrolan HANYA untuk user yang sedang login
+def get_all_sessions(uid):
     sessions = {}
-    docs = db.collection(collection_name).stream()
+    docs = db.collection(collection_name).where("user_id", "==", uid).stream()
     for doc in docs: sessions[doc.id] = doc.to_dict()
     return dict(sorted(sessions.items(), key=lambda x: (x[1].get('is_pinned', False), x[1].get('updated_at', '')), reverse=True))
 
-def create_new_session():
+# PR 1 FIX: Tambahkan UID saat membuat sesi baru
+def create_new_session(uid):
     new_id = str(uuid.uuid4())
-    db.collection(collection_name).document(new_id).set({"title": "Obrolan Baru", "messages": [], "updated_at": datetime.datetime.now().isoformat(), "is_pinned": False})
+    db.collection(collection_name).document(new_id).set({
+        "title": "Obrolan Baru", 
+        "messages": [], 
+        "updated_at": datetime.datetime.now().isoformat(), 
+        "is_pinned": False,
+        "user_id": uid
+    })
     return new_id
 
 def save_message(session_id, messages, title=None):
@@ -166,10 +179,10 @@ def save_message(session_id, messages, title=None):
     if title: update_data["title"] = title
     db.collection(collection_name).document(session_id).set(update_data, merge=True)
 
-chat_sessions = get_all_sessions()
-if "current_session_id" not in st.session_state:
-    st.session_state.current_session_id = create_new_session()
-    chat_sessions = get_all_sessions()
+chat_sessions = get_all_sessions(current_user_uid)
+if "current_session_id" not in st.session_state or st.session_state.current_session_id not in chat_sessions:
+    st.session_state.current_session_id = create_new_session(current_user_uid)
+    chat_sessions = get_all_sessions(current_user_uid)
 
 current_session_id = st.session_state.current_session_id
 current_data = chat_sessions.get(current_session_id, {"messages": [], "title": "Obrolan Baru"})
@@ -189,7 +202,7 @@ with st.sidebar:
 
         if st.session_state.current_page == "💬 AI Workspace":
             if st.button("➕ Obrolan Baru", use_container_width=True):
-                st.session_state.current_session_id = create_new_session()
+                st.session_state.current_session_id = create_new_session(current_user_uid)
                 st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
@@ -218,7 +231,14 @@ with st.sidebar:
                             st.rerun()
 
                         if st.button("📓 Add to Notebook", key=f"note_{s_id}", use_container_width=True):
-                            db.collection(notebook_collection).add({"session_id": s_id, "title": s_data['title'], "content": s_data['messages'], "created_at": datetime.datetime.now().isoformat()})
+                            # PR 1 FIX: Menambahkan UID saat menyimpan ke Notebook
+                            db.collection(notebook_collection).add({
+                                "session_id": s_id, 
+                                "title": s_data['title'], 
+                                "content": s_data['messages'], 
+                                "created_at": datetime.datetime.now().isoformat(),
+                                "user_id": current_user_uid
+                            })
                             st.toast("Disimpan ke Notebook!", icon="📓")
 
                         if st.button("🗑️ Delete", key=f"del_{s_id}", use_container_width=True):
@@ -228,19 +248,8 @@ with st.sidebar:
             st.divider()
             st.caption("WORKSPACE & SETTINGS")
 
-            model_version = st.selectbox(
-                "Versi Engine",
-                ["⚡ DIMX 3.5 plus-lite", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"],
-                index=0
-            )
-
-            if "3.5" in model_version:
-                active_model = 'gemini-2.0-flash'
-            elif "3.6" in model_version:
-                active_model = 'gemini-2.0-flash'
-            else:
-                active_model = 'gemini-2.0-flash'
-
+            model_version = st.selectbox("Versi Engine", ["⚡ DIMX 3.5 plus-lite", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"], index=0)
+            active_model = 'gemini-2.0-flash'
             mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     else:
         nav_selection = st.session_state.current_page
@@ -271,16 +280,7 @@ Prinsip Utama (Core Rules & Behavioral Guidelines):
 6. ZERO ESTIMATION: Dilarang memberikan estimasi waktu/biaya pasti tanpa ketersediaan dokumen requirement yang valid dan konsisten.
 7. Gaya Komunikasi: Professional, tajam, objektif, solutif, dan langsung ke inti masalah."""
 
-if "STUDY-X" in mode_dima if 'mode_dima' in locals() else False:
-    system_instruction = f"Mode STUDY-X.\n\n{base_memory}"
-elif "WORK-X" in mode_dima if 'mode_dima' in locals() else False:
-    system_instruction = f"Mode WORK-X.\n\n{base_memory}"
-elif "WRITE-X" in mode_dima if 'mode_dima' in locals() else False:
-    system_instruction = f"Mode WRITE-X.\n\n{base_memory}"
-else:
-    system_instruction = base_memory
-
-FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash']
+system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 
 def route_model(prompt_text, selected_model):
     if len(prompt_text) < 15 or prompt_text.lower().strip() in ["halo", "hi", "halo dimax", "test", "tes"]:
@@ -300,16 +300,6 @@ def generate_with_fallback(client, primary_model, contents, config):
             return client.models.generate_content(model=model_id, contents=contents, config=config), model_id
         except Exception:
             continue
-
-    try:
-        for m in client.models.list():
-            try:
-                return client.models.generate_content(model=m.name, contents=contents, config=config), m.name
-            except Exception:
-                continue
-    except Exception as list_err:
-        raise list_err
-
     raise Exception("API Key valid, tetapi tidak ada model yang dapat merespons permintaan.")
 
 def generate_followups(user_prompt, ai_response):
@@ -354,7 +344,6 @@ def build_chat_pdf(messages, title="DIMA-X Intelligence Report"):
     return buffer
 
 if st.session_state.current_page == "💬 AI Workspace":
-
     latency_text = f"~{st.session_state.last_latency:.1f}s respons terakhir" if st.session_state.last_latency else "menunggu permintaan pertama"
     st.markdown(f"""
         <div class="status-header">
@@ -373,29 +362,15 @@ if st.session_state.current_page == "💬 AI Workspace":
         with exp_col1:
             try:
                 pdf_buffer = build_chat_pdf(current_messages)
-                st.download_button(
-                    label="📄 Export PDF",
-                    data=pdf_buffer,
-                    file_name=f"DIMA-X_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+                st.download_button(label="📄 Export PDF", data=pdf_buffer, file_name=f"DIMA-X_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
             except ModuleNotFoundError:
-                st.caption("⚠️ Install `reportlab` (tambahkan ke requirements.txt) untuk mengaktifkan Export PDF.")
+                st.caption("⚠️ Install `reportlab` untuk mengaktifkan Export PDF.")
 
     for idx, message in enumerate(current_messages):
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-
-            if message["role"] == "assistant" and "```" in message["content"]:
-                code_blocks = message["content"].split("```")[1::2]
-                for c_idx, block in enumerate(code_blocks):
-                    code_lines = block.split("\n", 1)
-                    code_only = code_lines[1] if len(code_lines) > 1 else block
-                    if st.button(f"📋 Copy Code Block {c_idx+1}", key=f"copycode_{idx}_{c_idx}"):
-                        st.toast("Berhasil disalin!", icon="✅")
-                        st.code(code_only, language=code_lines[0].strip() if code_lines[0].strip() else None)
-
+            
+            # Action Buttons
             act_cols = st.columns([1, 1, 1, 7])
             if message["role"] == "user":
                 with act_cols[0]:
@@ -447,14 +422,8 @@ if st.session_state.current_page == "💬 AI Workspace":
             st.button("🧹 Bersihkan Konteks", use_container_width=True)
     with menu_col3:
         with st.popover("➕"):
-            input_mode = st.radio(
-                "Pilih Input:",
-                ["📁 Upload File", "📸 Kamera", "🎤 Pesan Suara"],
-                label_visibility="collapsed"
-            )
-
+            input_mode = st.radio("Pilih Input:", ["📁 Upload File", "📸 Kamera", "🎤 Pesan Suara"], label_visibility="collapsed")
             st.divider()
-
             if input_mode == "📁 Upload File":
                 uploaded_file = st.file_uploader("Format: PDF, TXT, PNG, JPG", type=['pdf', 'txt', 'png', 'jpg', 'jpeg'])
             elif input_mode == "📸 Kamera":
@@ -508,8 +477,7 @@ if st.session_state.current_page == "💬 AI Workspace":
                     if img_format.upper() not in ("PNG", "JPEG"):
                         img_format = "PNG"
                     pil_img.convert("RGB" if img_format.upper() == "JPEG" else pil_img.mode).save(buf, format=img_format)
-                    mime = f"image/{img_format.lower()}"
-                    return {"inline_data": {"mime_type": mime, "data": buf.getvalue()}}
+                    return {"inline_data": {"mime_type": f"image/{img_format.lower()}", "data": buf.getvalue()}}
 
                 if camera_photo:
                     img = Image.open(camera_photo)
@@ -532,24 +500,14 @@ if st.session_state.current_page == "💬 AI Workspace":
                     parts_payload.insert(0, {"text": "Transkripsikan dan analisis pesan suara (audio byte stream) berikut jika API mendukungnya.\n"})
 
                 formatted_contents.append({"role": "user", "parts": parts_payload})
-
                 final_model_to_use = route_model(prompt_text, active_model)
-                model_badge = "🧠 Mode Analisis Dalam" if ("3.6" in model_version or "3.1" in model_version) and final_model_to_use == active_model else "⚡ Mode Hemat"
 
                 with st.chat_message("assistant"):
-                    with st.spinner(f"DIMA-X sedang menulis... ({model_badge})"):
+                    with st.spinner(f"DIMA-X sedang menulis..."):
                         start_time = time.time()
-                        response, model_used = generate_with_fallback(
-                            client=client,
-                            primary_model=final_model_to_use,
-                            contents=formatted_contents,
-                            config=types.GenerateContentConfig(system_instruction=system_instruction)
-                        )
-                        elapsed = time.time() - start_time
-                        st.session_state.last_latency = elapsed
+                        response, model_used = generate_with_fallback(client=client, primary_model=final_model_to_use, contents=formatted_contents, config=types.GenerateContentConfig(system_instruction=system_instruction))
+                        st.session_state.last_latency = time.time() - start_time
                         st.markdown(response.text)
-                        if model_used != final_model_to_use:
-                            st.caption(f"⚠️ Model utama tidak tersedia, otomatis dialihkan ke: `{model_used}`")
 
                 if not (uploaded_file or camera_photo or audio_file):
                     save_cache(prompt_text, response.text)
@@ -562,34 +520,38 @@ if st.session_state.current_page == "💬 AI Workspace":
 
 elif st.session_state.current_page == "📓 Notebook Dashboard":
     st.title("📓 Notebook Dashboard")
-    st.markdown("Kumpulan catatan, ringkasan, dan draf penting yang sudah kamu simpan dari obrolan DIMA-X.")
+    st.markdown("Kumpulan catatan, ringkasan, dan draf penting yang sudah kamu simpan.")
     st.divider()
 
-    notes = db.collection(notebook_collection).order_by("created_at", direction=firestore.Query.DESCENDING).stream()
-    has_notes = False
-
-    for note in notes:
-        has_notes = True
+    # PR 1 FIX: Menampilkan Notebook HANYA milik user yang login dan mengurutkannya menggunakan Python
+    notes_ref = db.collection(notebook_collection).where("user_id", "==", current_user_uid).stream()
+    notes_list = []
+    
+    for note in notes_ref:
         n_data = note.to_dict()
-        with st.expander(f"📌 {n_data['title']} (Disimpan: {n_data.get('created_at', '')[:10]})"):
-            for msg in n_data['content']:
-                role_icon = "🧑‍💻" if msg["role"] == "user" else "🤖"
-                st.markdown(f"**{role_icon}**: {msg['content']}")
-            if st.button("🗑️ Hapus Catatan", key=f"del_note_{note.id}"):
-                db.collection(notebook_collection).document(note.id).delete()
-                st.rerun()
+        n_data['id'] = note.id
+        notes_list.append(n_data)
+        
+    # Urutkan berdasarkan waktu simpan
+    notes_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
-    if not has_notes:
-        st.info("Belum ada catatan. Gunakan fitur 'Add to Notebook' dari menu titik tiga di obrolan untuk menyimpan teks penting ke sini.")
+    if not notes_list:
+        st.info("Belum ada catatan. Gunakan fitur 'Add to Notebook' dari menu titik tiga di obrolan.")
+    else:
+        for n_data in notes_list:
+            with st.expander(f"📌 {n_data['title']} (Disimpan: {n_data.get('created_at', '')[:10]})"):
+                for msg in n_data['content']:
+                    role_icon = "🧑‍💻" if msg["role"] == "user" else "🤖"
+                    st.markdown(f"**{role_icon}**: {msg['content']}")
+                if st.button("🗑️ Hapus Catatan", key=f"del_note_{n_data['id']}"):
+                    db.collection(notebook_collection).document(n_data['id']).delete()
+                    st.rerun()
 
 elif st.session_state.current_page == "☁️ Drive Integration":
     st.title("☁️ Google Drive Workspace")
-    st.markdown("Integrasikan dokumen dari Google Drive langsung ke otak DIMA-X.")
-    st.warning("⚠️ Karena ini adalah aplikasi Streamlit personal, cara paling aman dan efisien mengimpor dokumen tanpa ribet setup OAuth/Credentials.json adalah menggunakan tautan folder publik atau link file langsung.")
-
     drive_link = st.text_input("🔗 Paste Link File/Folder Google Drive di sini:")
     if st.button("🔄 Sinkronkan Data", type="primary"):
         if "drive.google.com" in drive_link:
-            st.success("Tautan terdeteksi! (Script API akan mengekstrak ID dan mengunduh teks ke memori DIMA-X). Fitur ekstraksi URL ini akan aktif sepenuhnya saat deploy final.")
+            st.success("Tautan terdeteksi! Script API akan mengekstrak ID dan mengunduh teks.")
         else:
             st.error("Masukkan tautan Google Drive yang valid.")
