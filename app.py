@@ -270,25 +270,9 @@ system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 
 def generate_with_fallback(client, contents, config):
     try:
-        # 1. AUTO-DETECT: Mengambil daftar semua model yang aktif dan valid di API Key kamu
-        daftar_model = [m.name for m in client.models.list()]
-        safe_model = None
+        # Kita KUNCI mutlak ke model gratis yang kuotanya besar dan stabil
+        safe_model = "gemini-1.5-flash"
         
-        # 2. Mencari model yang tersedia berdasarkan prioritas kepintaran (dari 2.0 sampai 1.0)
-        for target in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]:
-            for m in daftar_model:
-                if target in m:
-                    # Menghapus kata 'models/' karena SDK v1beta butuh nama bersihnya
-                    safe_model = m.replace("models/", "")
-                    break
-            if safe_model:
-                break
-                
-        # 3. Jika tidak ketemu model yang cocok sama sekali
-        if not safe_model:
-            raise Exception(f"Daftar model asli di akunmu: {daftar_model}")
-
-        # 4. Mengeksekusi permintaan dengan model yang pasti ada
         response = client.models.generate_content(
             model=safe_model, 
             contents=contents, 
