@@ -36,7 +36,6 @@ firebaseConfig = {
 firebase = pyrebase.initialize_app(firebaseConfig)
 auth = firebase.auth()
 
-# FITUR ANTI-REFRESH (Mengecek tiket sesi di URL)
 if 'user' not in st.session_state:
     if "dimax_uid" in st.query_params and "dimax_email" in st.query_params:
         st.session_state['user'] = {
@@ -66,12 +65,11 @@ if not st.session_state['user']:
                         user = auth.sign_in_with_email_and_password(email_login, password_login)
                         st.session_state['user'] = user
                         
-                        # Simpan tiket ke URL agar tahan Refresh (F5)
                         st.query_params["dimax_uid"] = user["localId"]
                         st.query_params["dimax_email"] = user["email"]
                         
                         st.success("Autentikasi berhasil! Memuat DIMA-X...")
-                        time.sleep(1) # Beri jeda sejenak untuk memuat sesi
+                        time.sleep(1)
                         st.rerun()
                     except Exception as e:
                         st.error("Gagal Login: Periksa kembali email dan password Anda.")
@@ -99,18 +97,16 @@ if not st.session_state['user']:
 
     st.stop()
 
-# Simpan UID pengguna yang sedang login untuk isolasi data
 current_user_uid = st.session_state['user']['localId']
 st.sidebar.write(f"👤 User: {st.session_state['user']['email']}")
 
 if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
     st.session_state['user'] = None
-    # Hapus tiket dari URL saat logout
     st.query_params.clear()
     st.rerun()
 
 # ==========================================================
-# SISA KODE APLIKASI DIMA-X UTAMA (DENGAN FILTER PRIVASI)
+# SISA KODE APLIKASI DIMA-X UTAMA
 # ==========================================================
 st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
 
@@ -259,7 +255,7 @@ with st.sidebar:
             st.divider()
             st.caption("WORKSPACE & SETTINGS")
 
-            model_version = st.selectbox("Versi Engine", ["⚡ DIMX Lightning (1.5 Flash)", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"], index=0)
+            model_version = st.selectbox("Versi Engine", ["⚡ DIMX Auto-Smart", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"], index=0)
             mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     else:
         nav_selection = st.session_state.current_page
@@ -284,12 +280,16 @@ Prinsip Utama (Core Rules & Behavioral Guidelines):
 system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 
 # ==========================================================
-# SOLUSI FINAL: TERKUNCI KE MODEL YANG PASTI JALAN
+# SOLUSI FINAL: SMART FALLBACK & ANTI-LELET
 # ==========================================================
 def generate_with_fallback(client, contents, config):
-    # Mengunci ke satu model yang dijamin cepat dan pasti jalan
+    # Daftar lengkap variasi nama model Flash agar pasti nyangkut di salah satunya
     target_models = [
-        "gemini-1.5-flash"
+        "gemini-1.5-flash-002",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-flash-latest",
+        "gemini-1.0-pro",
+        "gemini-1.5-pro-latest"
     ]
     
     last_error = ""
@@ -302,7 +302,14 @@ def generate_with_fallback(client, contents, config):
             )
             return response, m
         except Exception as e:
-            last_error = str(e)
+            error_msg = str(e)
+            last_error = error_msg
+            
+            # Jika Error 429 (Limit Rate/Kuota API), LANGSUNG BERHENTI biar nggak nunggu 3 menit!
+            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                raise Exception(f"⚠️ Limit API terlalu cepat (429). Tunggu 30 detik lalu coba lagi. Jangan spam enter!")
+            
+            # Jika Error 404 (Model tidak ketemu), abaikan dan coba nama berikutnya secara instan
             continue 
             
     raise Exception(f"Gagal menembus API Google. Pesan error terakhir: {last_error}")
@@ -503,7 +510,7 @@ if st.session_state.current_page == "💬 AI Workspace":
                 formatted_contents.append({"role": "user", "parts": parts_payload})
 
                 with st.chat_message("assistant"):
-                    with st.spinner("DIMA-X sedang memproses..."):
+                    with st.spinner("DIMA-X sedang memproses... (Smart AI)"):
                         start_time = time.time()
                         
                         response, model_used = generate_with_fallback(
