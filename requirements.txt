@@ -3,3 +3,4 @@ google-genai
 PyPDF2
 pyrebase4
 firebase-admin
+reportlab
