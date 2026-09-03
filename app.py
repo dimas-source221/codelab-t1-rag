@@ -268,27 +268,56 @@ Prinsip Utama (Core Rules & Behavioral Guidelines):
 
 system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 
+# ==========================================================
+# SOLUSI FINAL DARI NEMOTRON (DITEMPELKAN DI SINI)
+# ==========================================================
 def generate_with_fallback(client, contents, config):
+    """
+    Generate content using Gemini model with explicit prioritization of gemini-3.6-flash
+    and a safe fallback chain to avoid 404/availability errors.
+    Returns: (response_object, model_name_string)
+    """
     try:
-        # 1. Minta daftar ASLI model yang 100% diizinkan untuk API Key ini
         daftar_model_asli = [m.name.replace("models/", "") for m in client.models.list()]
-        
-        # 2. Ambil model pertama yang mengandung kata 'gemini' 
-        safe_model = next((m for m in daftar_model_asli if "gemini" in m), None)
-        
-        if not safe_model:
-            raise Exception(f"Tidak ada model Gemini di akun ini. Daftar aslimu: {daftar_model_asli}")
-
-        # 3. Eksekusi menggunakan model yang pasti ada di akunmu
-        response = client.models.generate_content(
-            model=safe_model, 
-            contents=contents, 
-            config=config
-        )
-        return response, safe_model
-        
     except Exception as e:
-        raise Exception(f"Gagal memproses: {str(e)}")
+        raise Exception(f"Gagal mengambil daftar model dari Gemini API: {e}")
+
+    # --- TINGKAT 1: Model yang dinyatakan Google (wajib digunakan) ---
+    preferred_order = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+
+    for model_id in preferred_order:
+        if model_id in daftar_model_asli:
+            try:
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=contents,
+                    config=config
+                )
+                return response, model_id
+            except Exception as e:
+                # Model ada di daftar tapi gagal dijalankan (misal quota, rate limit)
+                # lanjut ke model selanjutnya, jangan langsung raise
+                continue
+
+    # --- TINGKAT 2: Fallback ke model apa saja yang ada di akun ini ---
+    gemini_models = [m for m in daftar_model_asli if "gemini" in m]
+    if gemini_models:
+        selected_model = gemini_models[0]  # gunakan model pertama yang tersedia
+        try:
+            response = client.models.generate_content(
+                model=selected_model,
+                contents=contents,
+                config=config
+            )
+            return response, selected_model
+        except Exception as e:
+            raise Exception(f"Gagal memproses dengan model fallback '{selected_model}': {e}")
+
+    # --- TIDAK ADA MODEL APAPUN ---
+    raise Exception(
+        "Tidak ada model Gemini yang terdaftar pada API Key ini. "
+        "Pastikan akun Anda memiliki akses ke Gemini, atau hubungi administrator."
+    )
 
 def generate_followups(user_prompt, ai_response):
     followups = []
@@ -489,7 +518,7 @@ if st.session_state.current_page == "💬 AI Workspace":
                     with st.spinner("DIMA-X sedang memproses... (Auto-Detect Model)"):
                         start_time = time.time()
                         
-                        # Memanggil fungsi AI yang sudah pakai fitur Auto-Detect Model
+                        # Memanggil fungsi AI yang sudah pakai fitur Auto-Detect Model dari Nemotron
                         response, model_used = generate_with_fallback(
                             client=client, 
                             contents=formatted_contents, 
