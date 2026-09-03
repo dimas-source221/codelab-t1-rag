@@ -46,7 +46,6 @@ if not st.session_state['user']:
     tab_login, tab_register = st.tabs(["🔑 Login", "📝 Buat Akun Baru"])
 
     with tab_login:
-        # Menggunakan st.form agar tidak macet / rerun berulang kali
         with st.form("login_form"):
             email_login = st.text_input("Email")
             password_login = st.text_input("Password", type="password")
@@ -155,14 +154,12 @@ def check_cache(prompt):
 def save_cache(prompt, response):
     db.collection(cache_collection).document(str(hash(prompt))).set({"prompt": prompt, "response": response, "timestamp": datetime.datetime.now().isoformat()})
 
-# PR 1 FIX: Filter obrolan HANYA untuk user yang sedang login
 def get_all_sessions(uid):
     sessions = {}
     docs = db.collection(collection_name).where("user_id", "==", uid).stream()
     for doc in docs: sessions[doc.id] = doc.to_dict()
     return dict(sorted(sessions.items(), key=lambda x: (x[1].get('is_pinned', False), x[1].get('updated_at', '')), reverse=True))
 
-# PR 1 FIX: Tambahkan UID saat membuat sesi baru
 def create_new_session(uid):
     new_id = str(uuid.uuid4())
     db.collection(collection_name).document(new_id).set({
@@ -231,7 +228,6 @@ with st.sidebar:
                             st.rerun()
 
                         if st.button("📓 Add to Notebook", key=f"note_{s_id}", use_container_width=True):
-                            # PR 1 FIX: Menambahkan UID saat menyimpan ke Notebook
                             db.collection(notebook_collection).add({
                                 "session_id": s_id, 
                                 "title": s_data['title'], 
@@ -249,12 +245,12 @@ with st.sidebar:
             st.caption("WORKSPACE & SETTINGS")
 
             model_version = st.selectbox("Versi Engine", ["⚡ DIMX 3.5 plus-lite", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"], index=0)
-            active_model = 'gemini-2.0-flash'
+            active_model = 'gemini-1.5-flash'
             mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     else:
         nav_selection = st.session_state.current_page
         model_version = "⚡ DIMX 3.5 plus-lite"
-        active_model = 'gemini-2.0-flash'
+        active_model = 'gemini-1.5-flash'
         mode_dima = "🤖 AI Chat"
         st.caption("Mode Demo aktif — menu disembunyikan.")
 
@@ -283,24 +279,22 @@ Prinsip Utama (Core Rules & Behavioral Guidelines):
 system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 
 def route_model(prompt_text, selected_model):
-    if len(prompt_text) < 15 or prompt_text.lower().strip() in ["halo", "hi", "halo dimax", "test", "tes"]:
-        return "gemini-2.0-flash"
-    return selected_model
+    # Selalu gunakan model 1.5 flash yang aman dan stabil
+    return "gemini-1.5-flash"
 
 def generate_with_fallback(client, primary_model, contents, config):
+    # Kita paksa menggunakan gemini-1.5-flash yang paling stabil dan umum
+    safe_model = "gemini-1.5-flash"
     try:
-        return client.models.generate_content(model=primary_model, contents=contents, config=config), primary_model
+        response = client.models.generate_content(
+            model=safe_model, 
+            contents=contents, 
+            config=config
+        )
+        return response, safe_model
     except Exception as e:
-        if "404" not in str(e) and "NOT_FOUND" not in str(e).upper():
-            raise e
-
-    static_fallbacks = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite"]
-    for model_id in static_fallbacks:
-        try:
-            return client.models.generate_content(model=model_id, contents=contents, config=config), model_id
-        except Exception:
-            continue
-    raise Exception("API Key valid, tetapi tidak ada model yang dapat merespons permintaan.")
+        # Jika gagal, ini akan menampilkan pesan error ASLI dari Google ke layar
+        raise Exception(f"Pesan Error Asli dari Google: {str(e)}")
 
 def generate_followups(user_prompt, ai_response):
     followups = []
@@ -523,7 +517,6 @@ elif st.session_state.current_page == "📓 Notebook Dashboard":
     st.markdown("Kumpulan catatan, ringkasan, dan draf penting yang sudah kamu simpan.")
     st.divider()
 
-    # PR 1 FIX: Menampilkan Notebook HANYA milik user yang login dan mengurutkannya menggunakan Python
     notes_ref = db.collection(notebook_collection).where("user_id", "==", current_user_uid).stream()
     notes_list = []
     
@@ -532,7 +525,6 @@ elif st.session_state.current_page == "📓 Notebook Dashboard":
         n_data['id'] = note.id
         notes_list.append(n_data)
         
-    # Urutkan berdasarkan waktu simpan
     notes_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
     if not notes_list:
