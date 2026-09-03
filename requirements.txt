@@ -1,7 +1,7 @@
-streamlit
+streamlit==1.38.0
 google-genai
 PyPDF2
+Pillow
 firebase-admin
-reportlab
 pyrebase4
-requests
+reportlab
