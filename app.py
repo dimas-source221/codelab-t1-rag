@@ -283,13 +283,9 @@ system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 # SOLUSI FINAL: SMART FALLBACK & ANTI-LELET
 # ==========================================================
 def generate_with_fallback(client, contents, config):
-    # Daftar lengkap variasi nama model Flash agar pasti nyangkut di salah satunya
+    # KUNCI HANYA DI SATU MODEL INI
     target_models = [
-        "gemini-1.5-flash-002",
-        "gemini-1.5-flash-001",
-        "gemini-1.5-flash-latest",
-        "gemini-1.0-pro",
-        "gemini-1.5-pro-latest"
+        "gemini-3.6-flash"
     ]
     
     last_error = ""
@@ -304,12 +300,8 @@ def generate_with_fallback(client, contents, config):
         except Exception as e:
             error_msg = str(e)
             last_error = error_msg
-            
-            # Jika Error 429 (Limit Rate/Kuota API), LANGSUNG BERHENTI biar nggak nunggu 3 menit!
             if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-                raise Exception(f"⚠️ Limit API terlalu cepat (429). Tunggu 30 detik lalu coba lagi. Jangan spam enter!")
-            
-            # Jika Error 404 (Model tidak ketemu), abaikan dan coba nama berikutnya secara instan
+                raise Exception(f"⚠️ Limit API terlalu cepat (429). Tunggu 30 detik lalu coba lagi.")
             continue 
             
     raise Exception(f"Gagal menembus API Google. Pesan error terakhir: {last_error}")
