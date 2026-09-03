@@ -1,7 +1,3 @@
-streamlit==1.38.0
-google-genai
-PyPDF2
-Pillow
-firebase-admin
-pyrebase4
-reportlab
+streamlit>=1.30.0
+google-generativeai>=0.3.0
+pypdf>=3.17.0
