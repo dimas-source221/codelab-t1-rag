@@ -108,7 +108,11 @@ if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
 # ==========================================================
 # SISA KODE APLIKASI DIMA-X UTAMA
 # ==========================================================
-st.set_page_config(page_title="DIMA-X | AI Agent", page_icon="🚀", layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="DIMA-X",
+    page_icon="🚀", 
+    layout="wide"
+)
 
 if "current_page" not in st.session_state:
     st.session_state.current_page = "💬 AI Workspace"
