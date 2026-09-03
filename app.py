@@ -123,6 +123,7 @@ if "demo_mode" not in st.session_state:
 if "last_latency" not in st.session_state:
     st.session_state.last_latency = None
 
+# --- PENAMBAHAN CSS BARU & EFEK ROKET BIRU ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Roboto:wght@400;500&display=swap');
@@ -133,9 +134,23 @@ st.markdown("""
     .brand-sidebar { font-family: 'Nunito', sans-serif; font-size: 1.8rem; font-weight: 900; text-align: left; margin-bottom: 20px; padding-left: 2px; }
     .brand-main { font-family: 'Nunito', sans-serif; font-size: 3.5rem; font-weight: 900; text-align: center; letter-spacing: -1.5px; }
     .brand-text { background: linear-gradient(135deg, #ffffff 40%, #87CEEB 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .rocket-icon { -webkit-text-fill-color: initial; }
+    
+    /* Efek Roket Berubah Warna Biru */
+    .rocket-icon { -webkit-text-fill-color: initial; filter: hue-rotate(220deg) brightness(1.2); }
+    
     .stButton>button { border-radius: 8px; border: 1px solid #333; background-color: #1e1e1e; color: white; transition: all 0.2s; text-align: left; }
     .stButton>button:hover { background-color: #333; border-color: #4A90E2; }
+
+    /* --- CSS Tampilan Welcome Screen Baru --- */
+    .welcome-container { text-align: center; padding: 1rem; }
+    .main-title { font-size: 2.5rem; font-weight: 800; margin-bottom: 0px; color: #ffffff; text-align: center;}
+    .sub-title { color: #a0a0a0; font-size: 1.1rem; margin-bottom: 1.5rem; text-align: center;}
+    .intro-text { color: #e0e0e0; font-size: 1rem; margin-bottom: 2rem; text-align: center;}
+    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
+    .feature-card { background-color: #1e1e1e; padding: 1.2rem; border-radius: 0.5rem; text-align: left; border: 1px solid #333; }
+    .feature-title { font-weight: 600; color: #ffffff; margin-bottom: 0.3rem; }
+    .feature-desc { color: #a0a0a0; font-size: 0.85rem; }
+    .status-badge-ui { text-align: center; margin-top: 3rem; color: #a0a0a0; font-size: 0.9rem; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -287,7 +302,6 @@ system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 # SOLUSI FINAL: SMART FALLBACK & ANTI-LELET
 # ==========================================================
 def generate_with_fallback(client, contents, config):
-    # KUNCI HANYA DI SATU MODEL INI
     target_models = [
         "gemini-3.6-flash"
     ]
@@ -361,9 +375,51 @@ if st.session_state.current_page == "💬 AI Workspace":
         </div>
     """, unsafe_allow_html=True)
 
+    # --- PENGGANTIAN TAMPILAN AWAL (WELCOME SCREEN) BARU ---
     if len(current_messages) == 0:
-        st.markdown("<br><br><br><div class='brand-main'><span class='rocket-icon'>🚀</span> <span class='brand-text'>DIMA-X</span></div>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #9ca3af;'>Halo! Apa yang bisa saya bantu hari ini?</p><br>", unsafe_allow_html=True)
+        st.markdown('<div class="welcome-container">', unsafe_allow_html=True)
+        st.markdown('<div class="rocket-icon" style="font-size: 4rem; margin-bottom: 0px; text-align: center;">🚀</div>', unsafe_allow_html=True)
+        st.markdown('<h1 class="main-title">DIMA-X</h1>', unsafe_allow_html=True)
+        st.markdown('<p class="sub-title">AI Asisten untuk Tugas Harian</p>', unsafe_allow_html=True)
+        st.markdown('<p class="intro-text">Bantu aku riset mendalam, brainstorming ide, atau delegasikan tugas teknis. Siap untuk apa?</p>', unsafe_allow_html=True)
+        
+        # Tombol Quick Actions
+        if st.button("🎓 Bantu riset & analisis kuliah", use_container_width=True):
+            st.session_state.quick_prompt = "Bantu aku riset dan analisis untuk materi perkuliahan."
+        if st.button("💼 Asisten dokumentasi & task kerja", use_container_width=True):
+            st.session_state.quick_prompt = "Bantu aku membuat dokumentasi dan mengatur task kerjaku hari ini."
+        if st.button("💡 Co-brainstorm ide & problem-solving", use_container_width=True):
+            st.session_state.quick_prompt = "Mari kita brainstorming ide dan cari solusi untuk memecahkan masalah ini."
+
+        # Grid "APA YANG AKU BISA"
+        st.markdown("""
+            <div style="text-align: center; margin-top: 3rem; color: #666; font-size: 0.8rem; font-weight: bold; letter-spacing: 1px;">
+                APA YANG AKU BISA:
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-title">Analisis mendalam</div>
+                    <div class="feature-desc">Riset, review dokumen, breakdown konsep</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Brainstorming</div>
+                    <div class="feature-desc">Ide, solusi, strategi problem-solving</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Coding & teknis</div>
+                    <div class="feature-desc">Debug, code review, arsitektur</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Asisten harian</div>
+                    <div class="feature-desc">Task, schedule, dokumentasi kerja</div>
+                </div>
+            </div>
+            
+            <div class="status-badge-ui">
+                <span style="color: #00e676;">🟢</span> Online & siap membantu
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     if len(current_messages) > 0:
         exp_col1, exp_col2 = st.columns([1, 5])
@@ -442,6 +498,12 @@ if st.session_state.current_page == "💬 AI Workspace":
     prompt_text = ""
 
     chat_input_val = st.chat_input("Tanyakan apa saja kepada DIMA-X...")
+
+    # --- PENYESUAIAN CHAT INPUT UNTUK QUICK PROMPT BUTTON ---
+    if "quick_prompt" in st.session_state and st.session_state.quick_prompt:
+        chat_input_val = st.session_state.quick_prompt
+        del st.session_state.quick_prompt  # Hapus agar tidak mengeksekusi ulang otomatis
+
     if chat_input_val or audio_file:
         prompt_text = chat_input_val if chat_input_val else "Tolong analisis instruksi suara ini."
         current_messages.append({"role": "user", "content": prompt_text})
