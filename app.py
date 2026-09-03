@@ -142,7 +142,7 @@ def get_long_term_memory():
     if doc.exists:
         return doc.to_dict().get("context", "")
     else:
-        default_context = "Fakta Pengguna: Mahasiswa Sistem Informasi, fokus pada efisiensi dan analisis sistem."
+        default_context = "Fakta Pengguna: Mahasiswa Sistem Informasi UT Pontianak. Fokus pada efisiensi dan analisis sistem."
         doc_ref.set({"context": default_context})
         return default_context
 
@@ -244,7 +244,7 @@ with st.sidebar:
             st.divider()
             st.caption("WORKSPACE & SETTINGS")
 
-            model_version = st.selectbox("Versi Engine", ["⚡ DIMX Auto-Detect Mode", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"], index=0)
+            model_version = st.selectbox("Versi Engine", ["⚡ DIMX Auto-Force Mode", "🚀 DIMX 3.6 pro", "🧠 DIMX 3.1 pro-max"], index=0)
             mode_dima = st.selectbox("Mode AI", ["🤖 AI Chat", "🎓 STUDY-X", "💼 WORK-X", "✍️ WRITE-X"])
     else:
         nav_selection = st.session_state.current_page
@@ -269,55 +269,32 @@ Prinsip Utama (Core Rules & Behavioral Guidelines):
 system_instruction = f"Mode {mode_dima}.\n\n{base_memory}"
 
 # ==========================================================
-# SOLUSI FINAL DARI NEMOTRON (DITEMPELKAN DI SINI)
+# SOLUSI FINAL: JALAN TOL MENGABAIKAN DAFTAR MODEL GOOGLE
 # ==========================================================
 def generate_with_fallback(client, contents, config):
-    """
-    Generate content using Gemini model with explicit prioritization of gemini-3.6-flash
-    and a safe fallback chain to avoid 404/availability errors.
-    Returns: (response_object, model_name_string)
-    """
-    try:
-        daftar_model_asli = [m.name.replace("models/", "") for m in client.models.list()]
-    except Exception as e:
-        raise Exception(f"Gagal mengambil daftar model dari Gemini API: {e}")
-
-    # --- TINGKAT 1: Model yang dinyatakan Google (wajib digunakan) ---
-    preferred_order = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-
-    for model_id in preferred_order:
-        if model_id in daftar_model_asli:
-            try:
-                response = client.models.generate_content(
-                    model=model_id,
-                    contents=contents,
-                    config=config
-                )
-                return response, model_id
-            except Exception as e:
-                # Model ada di daftar tapi gagal dijalankan (misal quota, rate limit)
-                # lanjut ke model selanjutnya, jangan langsung raise
-                continue
-
-    # --- TINGKAT 2: Fallback ke model apa saja yang ada di akun ini ---
-    gemini_models = [m for m in daftar_model_asli if "gemini" in m]
-    if gemini_models:
-        selected_model = gemini_models[0]  # gunakan model pertama yang tersedia
+    # Urutan model yang pasti valid dan paling baru
+    target_models = [
+        "gemini-3.6-flash", 
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+    ]
+    
+    last_error = ""
+    # Coba eksekusi satu per satu dari atas ke bawah, abaikan error list()
+    for m in target_models:
         try:
             response = client.models.generate_content(
-                model=selected_model,
+                model=m,
                 contents=contents,
                 config=config
             )
-            return response, selected_model
+            return response, m
         except Exception as e:
-            raise Exception(f"Gagal memproses dengan model fallback '{selected_model}': {e}")
-
-    # --- TIDAK ADA MODEL APAPUN ---
-    raise Exception(
-        "Tidak ada model Gemini yang terdaftar pada API Key ini. "
-        "Pastikan akun Anda memiliki akses ke Gemini, atau hubungi administrator."
-    )
+            last_error = str(e)
+            continue # Lanjut ke model berikutnya jika model ini 404/Limit
+            
+    # Jika ketiga model andalan di atas gagal semua:
+    raise Exception(f"Gagal menembus API Google. Pesan error terakhir: {last_error}")
 
 def generate_followups(user_prompt, ai_response):
     followups = []
@@ -515,10 +492,9 @@ if st.session_state.current_page == "💬 AI Workspace":
                 formatted_contents.append({"role": "user", "parts": parts_payload})
 
                 with st.chat_message("assistant"):
-                    with st.spinner("DIMA-X sedang memproses... (Auto-Detect Model)"):
+                    with st.spinner("DIMA-X sedang memproses... (Force Execute)"):
                         start_time = time.time()
                         
-                        # Memanggil fungsi AI yang sudah pakai fitur Auto-Detect Model dari Nemotron
                         response, model_used = generate_with_fallback(
                             client=client, 
                             contents=formatted_contents, 
