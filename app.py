@@ -97,7 +97,6 @@ if not st.session_state['user']:
 
     st.stop()
 
-# UID diambil, tapi tampilan logout dipindah ke bawah (dalam st.sidebar)
 current_user_uid = st.session_state['user']['localId']
 
 # ==========================================================
@@ -395,7 +394,6 @@ if st.session_state.current_page == "💬 AI Workspace":
         if st.button("💡 Co-brainstorm ide & problem-solving", use_container_width=True):
             st.session_state.quick_prompt = "Mari kita brainstorming ide dan cari solusi untuk memecahkan masalah ini."
 
-        # Jarak Padding dikurangi menjadi 1.5rem agar lebih proporsional
         st.markdown("""
 <div style="text-align: center; margin-top: 1.5rem; color: #888; font-size: 0.75rem; font-weight: 800; letter-spacing: 1.5px;">
     APA YANG AKU BISA:
@@ -481,7 +479,7 @@ if st.session_state.current_page == "💬 AI Workspace":
     camera_photo = None
     audio_file = None
 
-    # --- PERBAIKAN LAYOUT MENU DAN INPUT (Porsi 3 Kolom) ---
+    # --- PERBAIKAN LAYOUT MENU DAN INPUT (Porsi 3 Kolom + Deskripsi Modal) ---
     col_opsi, col_spacer, col_input = st.columns([1.5, 6.5, 2])
     
     with col_opsi:
@@ -493,13 +491,17 @@ if st.session_state.current_page == "💬 AI Workspace":
         
     with col_input:
         with st.popover("➕ Lampiran"):
-            input_mode = st.radio("Pilih Input:", ["📁 Upload File", "📸 Kamera", "🎤 Pesan Suara"], label_visibility="collapsed")
+            input_mode = st.radio(
+                "Pilih Input:", 
+                ["📁 Upload File (Analisis PDF/Dokumen)", "📸 Kamera (Scan Foto)", "🎤 Pesan Suara (Beta)"], 
+                label_visibility="collapsed"
+            )
             st.divider()
-            if input_mode == "📁 Upload File":
+            if input_mode == "📁 Upload File (Analisis PDF/Dokumen)":
                 uploaded_file = st.file_uploader("Format: PDF, TXT, PNG, JPG", type=['pdf', 'txt', 'png', 'jpg', 'jpeg'])
-            elif input_mode == "📸 Kamera":
+            elif input_mode == "📸 Kamera (Scan Foto)":
                 camera_photo = st.camera_input("Ambil Foto Dokumen")
-            elif input_mode == "🎤 Pesan Suara":
+            elif input_mode == "🎤 Pesan Suara (Beta)":
                 audio_file = st.audio_input("Tekan untuk merekam")
 
     trigger_generate = False
