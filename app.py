@@ -97,13 +97,8 @@ if not st.session_state['user']:
 
     st.stop()
 
+# UID diambil, tapi tampilan logout dipindah ke bawah (dalam st.sidebar)
 current_user_uid = st.session_state['user']['localId']
-st.sidebar.write(f"👤 User: {st.session_state['user']['email']}")
-
-if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
-    st.session_state['user'] = None
-    st.query_params.clear()
-    st.rerun()
 
 # ==========================================================
 # SISA KODE APLIKASI DIMA-X UTAMA
@@ -282,6 +277,15 @@ with st.sidebar:
         nav_selection = st.session_state.current_page
         mode_dima = "🤖 AI Chat"
         st.caption("Mode Demo aktif — menu disembunyikan.")
+        
+    # --- POSISI BARU: INFO USER & LOGOUT (Di Paling Bawah Sidebar) ---
+    st.divider()
+    st.caption("AKUN PENGGUNA")
+    st.write(f"👤 {st.session_state['user']['email']}")
+    if st.button("🚪 Keluar (Logout)", use_container_width=True):
+        st.session_state['user'] = None
+        st.query_params.clear()
+        st.rerun()
 
 long_term_context = get_long_term_memory()
 
@@ -477,12 +481,16 @@ if st.session_state.current_page == "💬 AI Workspace":
     camera_photo = None
     audio_file = None
 
-    # --- PERBAIKAN LAYOUT MENU DAN INPUT (Responsive Mobile) ---
-    # Diubah menjadi 2 kolom solid agar di HP berdampingan rapi kiri-kanan
-    col_opsi, col_input = st.columns(2)
+    # --- PERBAIKAN LAYOUT MENU DAN INPUT (Porsi 3 Kolom) ---
+    col_opsi, col_spacer, col_input = st.columns([1.5, 6.5, 2])
+    
     with col_opsi:
         with st.popover("⋮ Opsi"):
             st.button("🧹 Bersihkan Konteks", use_container_width=True)
+            
+    with col_spacer:
+        st.empty()
+        
     with col_input:
         with st.popover("➕ Lampiran"):
             input_mode = st.radio("Pilih Input:", ["📁 Upload File", "📸 Kamera", "🎤 Pesan Suara"], label_visibility="collapsed")
