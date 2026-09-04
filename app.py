@@ -123,7 +123,7 @@ if "demo_mode" not in st.session_state:
 if "last_latency" not in st.session_state:
     st.session_state.last_latency = None
 
-# --- PENAMBAHAN CSS BARU ---
+# --- PENAMBAHAN CSS BARU DENGAN POLESAN FINAL CLAUDE ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Roboto:wght@400;500&display=swap');
@@ -138,19 +138,21 @@ st.markdown("""
     /* Efek Roket Berubah Warna Biru */
     .rocket-icon { -webkit-text-fill-color: initial; filter: hue-rotate(220deg) brightness(1.2); }
     
-    .stButton>button { border-radius: 8px; border: 1px solid #333; background-color: #1e1e1e; color: white; transition: all 0.2s; text-align: left; }
-    .stButton>button:hover { background-color: #333; border-color: #4A90E2; }
+    /* Tombol Quick Action Lebih Kontras & Hover Effect */
+    .stButton>button { border-radius: 8px; border: 1px solid #333; background-color: #1e1e1e; color: #ffffff; font-weight: 600; transition: all 0.2s; text-align: left; }
+    .stButton>button:hover { background-color: #2a2a2a; border-color: #4A90E2; color: #87CEEB; }
 
     /* --- CSS Tampilan Welcome Screen --- */
     .welcome-title { font-family: 'Nunito', sans-serif; font-size: 3rem; font-weight: 900; margin-bottom: 0px; text-align: center; background: linear-gradient(135deg, #ffffff 40%, #87CEEB 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .sub-title { color: #a0a0a0; font-size: 1.1rem; margin-bottom: 1.5rem; text-align: center;}
-    .intro-text { color: #e0e0e0; font-size: 1rem; margin-bottom: 2rem; text-align: center;}
+    .sub-title { color: #a0a0a0; font-size: 1.1rem; margin-bottom: 1.2rem; text-align: center;}
+    .intro-text { color: #e0e0e0; font-size: 1rem; margin-bottom: 1.8rem; text-align: center;}
     
-    /* Grid Responsif: Otomatis 1 kolom di HP, 2 kolom di Laptop */
-    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-    .feature-card { background-color: #1e1e1e; padding: 1.2rem; border-radius: 0.5rem; text-align: left; border: 1px solid #333; }
-    .feature-title { font-weight: 600; color: #ffffff; margin-bottom: 0.3rem; }
-    .feature-desc { color: #a0a0a0; font-size: 0.85rem; }
+    /* Grid Responsif & Hover Effect pada Kartu Fitur */
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.8rem; margin-top: 1rem; }
+    .feature-card { background-color: #1a1a1a; padding: 1rem 1.2rem; border-radius: 0.6rem; text-align: left; border: 1px solid #2e2e2e; transition: all 0.25s ease; }
+    .feature-card:hover { background-color: #242424; border-color: #4A90E2; transform: translateY(-2px); }
+    .feature-title { font-weight: 700; color: #ffffff; margin-bottom: 0.2rem; font-size: 0.95rem; }
+    .feature-desc { color: #9a9a9a; font-size: 0.82rem; line-height: 1.3; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -375,7 +377,7 @@ if st.session_state.current_page == "💬 AI Workspace":
         </div>
     """, unsafe_allow_html=True)
 
-    # --- PENGGANTIAN TAMPILAN AWAL (WELCOME SCREEN) BARU YANG DIPERBAIKI ---
+    # --- PENGGANTIAN TAMPILAN AWAL (WELCOME SCREEN) ---
     if len(current_messages) == 0:
         st.markdown('<div style="text-align: center; margin-bottom: 0px;"><span class="rocket-icon" style="font-size: 4rem;">🚀</span></div>', unsafe_allow_html=True)
         st.markdown('<div class="welcome-title">DIMA-X</div>', unsafe_allow_html=True)
@@ -389,8 +391,9 @@ if st.session_state.current_page == "💬 AI Workspace":
         if st.button("💡 Co-brainstorm ide & problem-solving", use_container_width=True):
             st.session_state.quick_prompt = "Mari kita brainstorming ide dan cari solusi untuk memecahkan masalah ini."
 
+        # Jarak Padding dikurangi menjadi 1.5rem agar lebih proporsional
         st.markdown("""
-<div style="text-align: center; margin-top: 3rem; color: #666; font-size: 0.8rem; font-weight: bold; letter-spacing: 1px;">
+<div style="text-align: center; margin-top: 1.5rem; color: #888; font-size: 0.75rem; font-weight: 800; letter-spacing: 1.5px;">
     APA YANG AKU BISA:
 </div>
 <div class="feature-grid">
@@ -474,12 +477,14 @@ if st.session_state.current_page == "💬 AI Workspace":
     camera_photo = None
     audio_file = None
 
-    menu_col1, menu_col2, menu_col3 = st.columns([1, 8, 1])
-    with menu_col1:
-        with st.popover("⋮"):
+    # --- PERBAIKAN LAYOUT MENU DAN INPUT (Responsive Mobile) ---
+    # Diubah menjadi 2 kolom solid agar di HP berdampingan rapi kiri-kanan
+    col_opsi, col_input = st.columns(2)
+    with col_opsi:
+        with st.popover("⋮ Opsi"):
             st.button("🧹 Bersihkan Konteks", use_container_width=True)
-    with menu_col3:
-        with st.popover("➕"):
+    with col_input:
+        with st.popover("➕ Lampiran"):
             input_mode = st.radio("Pilih Input:", ["📁 Upload File", "📸 Kamera", "🎤 Pesan Suara"], label_visibility="collapsed")
             st.divider()
             if input_mode == "📁 Upload File":
@@ -494,7 +499,6 @@ if st.session_state.current_page == "💬 AI Workspace":
 
     chat_input_val = st.chat_input("Tanyakan apa saja kepada DIMA-X...")
 
-    # --- PENYESUAIAN CHAT INPUT UNTUK QUICK PROMPT BUTTON ---
     if "quick_prompt" in st.session_state and st.session_state.quick_prompt:
         chat_input_val = st.session_state.quick_prompt
         del st.session_state.quick_prompt
