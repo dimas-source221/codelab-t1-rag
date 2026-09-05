@@ -1,6 +1,7 @@
-streamlit>=1.30.0
+streamlit
 google-genai
 PyPDF2
-pyrebase4
+Pillow
 firebase-admin
+pyrebase4
 reportlab
