@@ -1,20 +1,18 @@
-# Gunakan OS sistem Python yang ringan
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# Buat folder kerja di dalam mesin virtual
 WORKDIR /app
 
-# Salin file daftar pustaka ke mesin virtual
-COPY requirements.txt .
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install semua pustaka tanpa menyimpan cache agar memori tetap lega
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Salin seluruh file kode kamu (termasuk app.py)
 COPY . .
 
-# Buka port 8080 (wajib untuk Google Cloud Run)
 EXPOSE 8080
 
-# Jalankan Streamlit saat mesin dihidupkan
 CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]
